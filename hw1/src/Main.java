@@ -4,19 +4,25 @@ import java.util.*;
 
 public class Main {
 
-    public static String startSymbol = "*START*";
-    public static String stopSymbol = "*STOP*";
-    public static String unkSymbol = "*UNK*";
+    public static String startSymbol = "START";
+    public static String stopSymbol = "STOP";
+    public static String unkSymbol = "UNK";
     public static String keySeparator = "#";
 
-    public static int unkThreshold = 2;
+    public static int unkThreshold = 3;
+
+
+    public static HashMap<String, Integer> unigram_map = null;
+    public static HashMap<String, Integer> bigram_map = null;
+    public static HashMap<String, Integer> trigram_map = null;
+    public static int numLinesInTrain = 0;
 
 
     public static void main(String[] args) {
         // write your code here
-        String trainFilePath = "C:\\Users\\karim\\OneDrive\\Documents\\uwash\\fall18\\repo\\CSE517-NLP\\hw1\\CSE517-HW1-Data\\prob1_brown_full\\brown.train.txt";
-        String devFilePath = "C:\\Users\\karim\\OneDrive\\Documents\\uwash\\fall18\\repo\\CSE517-NLP\\hw1\\CSE517-HW1-Data\\prob1_brown_full\\brown.dev.txt";
-        String testFilePath = "C:\\Users\\karim\\OneDrive\\Documents\\uwash\\fall18\\repo\\CSE517-NLP\\hw1\\CSE517-HW1-Data\\prob1_brown_full\\brown.test.txt";
+        String trainFilePath = "CSE517-HW1-Data/prob1_brown_full/brown.train.txt";
+        String devFilePath = "CSE517-HW1-Data/prob1_brown_full/brown.dev.txt";
+        String testFilePath = "CSE517-HW1-Data/prob1_brown_full/brown.test.txt";
 
 
         //get words with count less than 2
@@ -31,40 +37,58 @@ public class Main {
                 wordsFiltered.put(key,keyValue);
             }
         }
-        String newFilePath = "C:\\Users\\karim\\OneDrive\\Documents\\uwash\\fall18\\repo\\CSE517-NLP\\hw1\\CSE517-HW1-Data\\prob1_brown_full\\brown.train.filtered.txt";
+        String trainNewFilePath = "CSE517-HW1-Data/prob1_brown_full/brown.train.filtered.txt";
+        String devNewFilePath = "CSE517-HW1-Data/prob1_brown_full/brown.dev.filtered.txt";
+        String testNewFilePath = "CSE517-HW1-Data/prob1_brown_full/brown.test.filtered.txt";
 
         //go through file and replace all less than 2 words with UNK
-        remove_low_freq_words(trainFilePath,newFilePath,wordsFiltered);
+        remove_low_freq_words(trainFilePath,trainNewFilePath,wordsFiltered);
+        remove_low_freq_words(devFilePath,devNewFilePath,wordsFiltered);
+        remove_low_freq_words(testFilePath,testNewFilePath,wordsFiltered);
+
 
         //create 1,2,3 grams
-        HashMap<String, Integer> unigram_map = ngram_count(newFilePath, 1);
-       // HashMap<String, Integer> bigram_map = ngram_count(newFilePath, 2);
-       // HashMap<String, Integer> trigram_map = ngram_count(newFilePath, 3);
+        unigram_map = ngram_count(trainNewFilePath, 1);
+        bigram_map = ngram_count(trainNewFilePath, 2);
+        trigram_map = ngram_count(trainNewFilePath, 3);
 
         //run on train,dev,test and give prob of each sentence
-        double trainUnigramPerplexity = evaluateSet(unigram_map,trainFilePath,1);
+        System.out.println("UNIGRAM PROBABILITIES");
+        double trainUnigramPerplexity = evaluateSet(trainNewFilePath,1);
         System.out.println(trainUnigramPerplexity);
-       /* double devUnigramPerplexity = evaluateSet(unigram_map,trainFilePath,1);
-        double testUnigramPerplexity = evaluateSet(unigram_map,trainFilePath,1);
+        double devUnigramPerplexity = evaluateSet(devNewFilePath,1);
+        System.out.println(devUnigramPerplexity);
+        double testUnigramPerplexity = evaluateSet(testNewFilePath,1);
+        System.out.println(testUnigramPerplexity);
 
-        double trainBigramPerplexity = evaluateSet(unigram_map,trainFilePath,2);
-        double devBigramPerplexity = evaluateSet(unigram_map,trainFilePath,2);
-        double testBigramPerplexity = evaluateSet(unigram_map,trainFilePath,2);
+        //run on train,dev,test and give prob of each sentence
+        System.out.println("BIGRAM PROBABILITIES");
+        double trainBigramPerplexity = evaluateSet(trainNewFilePath,2);
+        System.out.println(trainBigramPerplexity);
+        double devBigramPerplexity = evaluateSet(devNewFilePath,2);
+        System.out.println(devBigramPerplexity);
+        double testBigramPerplexity = evaluateSet(testNewFilePath,2);
+        System.out.println(testBigramPerplexity);
 
-        double trainTrigramPerplexity = evaluateSet(unigram_map,trainFilePath,3);
-        double devTrigramPerplexity = evaluateSet(unigram_map,trainFilePath,3);
-        double testTrigramPerplexity = evaluateSet(unigram_map,trainFilePath,3);
-*/
+        //run on train,dev,test and give prob of each sentence
+        System.out.println("TRIGRAM PROBABILITIES");
+        double trainTrigramPerplexity = evaluateSet(trainNewFilePath,3);
+        System.out.println(trainTrigramPerplexity);
+        double devTrigramPerplexity = evaluateSet(devNewFilePath,3);
+        System.out.println(devTrigramPerplexity);
+        double testTrigramPerplexity = evaluateSet(testNewFilePath,3);
+        System.out.println(testTrigramPerplexity);
+
     }
 
-    public static double evaluateSet(HashMap<String, Integer> countMap, String filePath, int n) {
+    public static double evaluateSet(String filePath, int n) {
 
         int sum = 0;
-        if(n==1) {
-            for (int f : countMap.values()) {
+
+            for (int f : unigram_map.values()) {
                 sum += f;
             }
-        }
+        
 
         double l = 0;
         try {
@@ -83,6 +107,8 @@ public class Main {
 
                 ArrayList<String> tokens = new ArrayList<String>(Arrays.asList(strLine.split(" ")));
                 m+=tokens.size();
+
+
                 for (int i = 1; i < n; i++) {
                     tokens.add(0, startSymbol);
                 }
@@ -95,16 +121,11 @@ public class Main {
                    double logProb = 0;
                    //double prob = 1;
 
-                    for (String token :tokens) {
+                    for (int i=0;i<tokens.size();i++) {
 
-                        int tokenValue = 0;
-                        if(countMap.containsKey(token))
-                        {
-                            tokenValue = countMap.get(token);
-                        }
-                        else {
-                            tokenValue = countMap.get(unkSymbol);
-                        }
+                        String token = tokens.get(i);
+                        int tokenValue = unigram_map.get(token);
+
                         //System.out.println(" tokenValue: "+tokenValue);
 
                         //prob *= (tokenValue/sum);
@@ -116,31 +137,110 @@ public class Main {
 
                 }
 
-             /*   for (int i = 0; i < tokens.size(); i++) {
-                    ArrayList<String> keyArr = new ArrayList<>();
-                    for (int j = i; j < i + n; j++) {
-                        if (j >= tokens.size()) {
-                            break;
+                if(n==2)
+                {
+                    double logProb = 0;
+                    boolean foundZero = false;
+                    //double prob = 1;
+
+                    for (int i=1;i<tokens.size();i++) {
+
+                        String token = tokens.get(i);
+                        String previouskeyString = tokens.get(i-1);
+                        String keyString = previouskeyString+keySeparator+token;
+                        int tokenValue  = bigram_map.containsKey(keyString) ? bigram_map.get(keyString): 0;
+
+
+                        //System.out.println(" tokenValue: "+tokenValue);
+
+                        //prob *= (tokenValue/sum);
+                        int previousValue = 0;
+                        if(previouskeyString.equals(startSymbol))
+                        {
+                            previousValue = numLinesInTrain;
                         }
-                        keyArr.add(tokens.get(j));
-                    }
+                        else
+                        {
+                            previousValue = unigram_map.containsKey(previouskeyString)?unigram_map.get(previouskeyString):0;
+                        }
 
-                    String keyString = String.join(keySeparator, keyArr);
-                    int KeyStringCount = 0;
-                    if(countMap.containsKey(keyString))
-                    {
-                        KeyStringCount = countMap.get(keyString);
-                    }
-                    else {
-                        KeyStringCount = countMap.get(unkSymbol);
-                    }
+                        if(tokenValue == 0 || previousValue == 0)
+                        {
+                            foundZero = true;
+                            logProb = 0;
+                        }
+                        else {
+                            logProb += (Math.log(tokenValue) - Math.log(previousValue));
+                        }
 
-                    int valueCount = counts.containsKey(keyString) ? counts.get(keyString) : 0;
-                    counts.put(keyString, valueCount + 1);
+                    }
+                    //System.out.println(strLine+" prob: "+prob);
+                    if(foundZero)
+                        logProb = 0;
+                    totalLogProb+=logProb;
+
                 }
 
-                // Print the content on the console
-                System.out.println(strLine);*/
+                if(n==3)
+                {
+                    double logProb = 0;
+
+                    //double prob = 1;
+
+                    for (int i=2;i<tokens.size();i++) {
+
+
+                        String token = tokens.get(i);
+                        String previous = tokens.get(i-1);
+                        String twoPrevious = tokens.get(i-2);
+                        double tokenValue = 0;
+                        if(i==2)
+                        {
+                            //unigram first word
+                            tokenValue = unigram_map.get(token);
+                            logProb += (Math.log(tokenValue)-Math.log(sum));
+
+                        }
+                        if(i==3)
+                        {
+                            //bigram second word
+                            String keyString = String.join(keySeparator,new String[] {previous,token});
+                            tokenValue = bigram_map.containsKey(keyString)?bigram_map.get(keyString):Double.MIN_VALUE;
+                            logProb += (Math.log(tokenValue)-Math.log(unigram_map.get(previous)));
+                        }
+                        else
+                        {
+                            String keyString = String.join(keySeparator,new String[] {twoPrevious,previous,token});
+                            String previouskeyString = String.join(keySeparator,new String[] {twoPrevious,previous});
+                            tokenValue = trigram_map.containsKey(keyString)?trigram_map.get(keyString):Double.MIN_VALUE;
+                            double previousValue = bigram_map.containsKey(previouskeyString)?bigram_map.get(previouskeyString):Double.MIN_VALUE;
+                            logProb += (Math.log(tokenValue)-Math.log(previousValue));
+                        }
+
+
+
+                        //System.out.println(" tokenValue: "+tokenValue);
+                      /*  double previousValue = 0;
+                        if(previouskeyString.equals(String.join(keySeparator,new String[]{startSymbol,startSymbol})))
+                        {
+                            previousValue = numLinesInTrain;
+                        }
+                        else
+                        {
+                            previousValue = bigram_map.containsKey(previouskeyString)?bigram_map.get(previouskeyString):Double.MIN_VALUE;
+                        }
+
+                            logProb += (Math.log(tokenValue)-Math.log(previousValue));*/
+
+                        //prob *= (tokenValue/sum);
+
+                    }
+                    //System.out.println(strLine+" prob: "+prob);
+
+
+                    totalLogProb+=logProb;
+
+                }
             }
             System.out.println("total log prob: "+totalLogProb);
             l = (totalLogProb/m);
@@ -252,10 +352,13 @@ public class Main {
 
             String strLine;
 
+            int numLines = 0;
+
             //Read File Line By Line
             while ((strLine = br.readLine()) != null) {
 
                 ArrayList<String> list = new ArrayList();
+                numLines+=1;
 
                 ArrayList<String> tokens = new ArrayList<String>(Arrays.asList(strLine.split(" ")));
 
@@ -267,10 +370,8 @@ public class Main {
 
                 for (int i = 0; i < tokens.size(); i++) {
                     ArrayList<String> keyArr = new ArrayList<>();
-                    for (int j = i; j < i + n; j++) {
-                        if (j >= tokens.size()) {
-                            break;
-                        }
+                    for (int j = i; (j < i + n) && (j< tokens.size()); j++) {
+
                         keyArr.add(tokens.get(j));
                     }
 
@@ -287,6 +388,8 @@ public class Main {
 
             //Close the input stream
             br.close();
+            System.out.println(counts);
+            numLinesInTrain = numLines;
 
         } catch (Exception e) {
             e.printStackTrace();
