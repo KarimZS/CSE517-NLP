@@ -13,6 +13,11 @@ public class Main {
 
     public static int unkThreshold = 5;
     public static int addK = 1;
+    public static double unigramLambda = .2;
+    public static double bigramLambda = .2;
+    public static double trigramLambda = .6;
+
+
 
 
     public static HashMap<String, Integer> unigram_map = null;
@@ -98,6 +103,233 @@ public class Main {
         double addKtestTrigramPerplexity = addKevaluateSet(testNewFilePath,3,addK);
         System.out.println(addKtestTrigramPerplexity);
 
+        System.out.println("TRIGRAM PROBABILITIES-Linear Interpolation Smoothed");
+        double lininttrainTrigramPerplexity = linearInterpolationevaluateSet(trainNewFilePath,3,unigramLambda,bigramLambda,trigramLambda);
+        System.out.println(lininttrainTrigramPerplexity);
+        double linintdevTrigramPerplexity = linearInterpolationevaluateSet(devNewFilePath,3,unigramLambda,bigramLambda,trigramLambda);
+        System.out.println(linintdevTrigramPerplexity);
+        double lininttestTrigramPerplexity = linearInterpolationevaluateSet(testNewFilePath,3,unigramLambda,bigramLambda,trigramLambda);
+        System.out.println(lininttestTrigramPerplexity);
+
+    }
+    public static double linearInterpolationevaluateSet(String filePath, int n,double l1,double l2,double l3) {
+
+        int sum = 0;
+
+        for (int f : unigram_map.values()) {
+            sum += f;
+        }
+
+
+        double l = 0;
+        try {
+            /* Open the file */
+            FileInputStream fstream = new FileInputStream(filePath);
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
+
+            String strLine;
+
+            int m = 0;
+            double totalLogProb = 0;
+
+            //Read File Line By Line
+            while ((strLine = br.readLine()) != null) {
+
+                ArrayList<String> tokens = new ArrayList<String>(Arrays.asList(strLine.split(" ")));
+                m+=tokens.size();
+
+                tokens.add(stopSymbol);
+
+                //unigram state
+                if(n==1)
+                {
+                    double logProb = 0;
+                    //double prob = 1;
+
+                    for (int i=0;i<tokens.size();i++) {
+
+                        String token = tokens.get(i);
+                        //unigram first word
+                        double tokenValue = unigram_map.get(token);
+                        logProb += (Math.log(l1*tokenValue)-Math.log(sum));
+                    }
+                    //System.out.println(strLine+" prob: "+prob);
+                    totalLogProb+=logProb;
+
+                }
+
+                if(n==2)
+                {
+                    double logProb = 0;
+
+                    for (int i=0;i<tokens.size();i++) {
+
+                        if(i==0)
+                        {
+                            String token = tokens.get(i);
+                            //unigram first word
+                            double tokenValue = unigram_map.get(token);
+                            logProb += (Math.log(l1*tokenValue)-Math.log(sum));
+
+                        }
+                        else
+                        {
+
+                            String token = tokens.get(i);
+                            String previous = tokens.get(i-1);
+
+                            double tokenValue = 0;
+                            double denominator = unigram_map.get(previous);
+
+                            HashMap<String,Integer> bigramTokenTable = bigram_map.containsKey(previous)?bigram_map.get(previous):null;
+                            if(bigramTokenTable!=null)
+                            {
+                                tokenValue = bigramTokenTable.containsKey(token)?bigramTokenTable.get(token):0;
+
+                            }
+                            else
+                            {
+                                tokenValue = 0;
+
+                            }
+
+                            double unigramTokenValue = unigram_map.get(token);
+
+                            if(tokenValue!=0)
+                            {
+                                logProb += (Math.log(l1*unigramTokenValue)-Math.log(sum));
+                                logProb += (Math.log(l2*tokenValue)-Math.log(denominator));
+                            }
+                            else
+                            {
+                                logProb += (Math.log(l1*unigramTokenValue)-Math.log(sum));
+                            }
+                        }
+                    }
+                    //System.out.println(strLine+" prob: "+prob);
+                    totalLogProb+=logProb;
+
+                }
+
+                if(n==3)
+                {
+
+                    double logProb = 0;
+
+                    for (int i=0;i<tokens.size();i++) {
+
+                        if(i==0)
+                        {
+                            String token = tokens.get(i);
+                            //unigram first word
+                            double tokenValue = unigram_map.get(token);
+                            logProb += (Math.log(l1*tokenValue)-Math.log(sum));
+
+                        }
+                        else if(i==1)
+                        {
+                            String token = tokens.get(i);
+                            String previous = tokens.get(i-1);
+
+                            double tokenValue = 0;
+                            double denominator = unigram_map.get(previous);
+
+                            HashMap<String,Integer> bigramTokenTable = bigram_map.containsKey(previous)?bigram_map.get(previous):null;
+                            if(bigramTokenTable!=null)
+                            {
+                                tokenValue = bigramTokenTable.containsKey(token)?bigramTokenTable.get(token):0;
+
+                            }
+                            else
+                            {
+                                tokenValue = 0;
+
+                            }
+
+                            double unigramTokenValue = unigram_map.get(token);
+
+                            if(tokenValue!=0)
+                            {
+                                logProb += (Math.log(l1*unigramTokenValue)-Math.log(sum));
+                                logProb += (Math.log(l2*tokenValue)-Math.log(denominator));
+                            }
+                            else
+                            {
+                                logProb += (Math.log(l1*unigramTokenValue)-Math.log(sum));
+                            }
+                        }
+                        else
+                        {
+                            String token = tokens.get(i);
+                            String previous = tokens.get(i-1);
+                            String twoPrevious = tokens.get(i-2);
+                            String previouskeyString = String.join(keySeparator,new String[] {twoPrevious,previous});
+
+
+                            double tokenValue = 0;
+                            double denominator =bigram_map.containsKey(twoPrevious)?bigram_map.get(twoPrevious).containsKey(previous)?bigram_map.get(twoPrevious).get(previous):0:0;
+
+                            HashMap<String,Integer> temp = trigram_map.containsKey(previouskeyString)?trigram_map.get(previouskeyString):null;
+                            if(temp!=null)
+                            {
+                                tokenValue = temp.containsKey(token)?temp.get(token):0;
+
+                            }
+                            else
+                            {
+                                tokenValue = 0;
+                            }
+
+                            double unigramTokenValue = unigram_map.get(token);
+
+                            //bigram token value
+                            double bigramtokenValue = 0;
+                            double bigramdenominator = unigram_map.get(previous);
+
+                            HashMap<String,Integer> bigramTokenTable = bigram_map.containsKey(previous)?bigram_map.get(previous):null;
+                            if(bigramTokenTable!=null)
+                            {
+                                bigramtokenValue = bigramTokenTable.containsKey(token)?bigramTokenTable.get(token):0;
+
+                            }
+                            else
+                            {
+                                bigramtokenValue = 0;
+
+                            }
+
+                            if(tokenValue!=0&&bigramtokenValue!=0)
+                            {
+                                logProb += (Math.log(l1*unigramTokenValue)-Math.log(sum));
+                                logProb += (Math.log(l2*bigramtokenValue)-Math.log(bigramdenominator));
+                                logProb += (Math.log(l3*tokenValue)-Math.log(denominator));
+                            }
+                            else if(bigramtokenValue!=0)
+                            {
+                                logProb += (Math.log(l1*unigramTokenValue)-Math.log(sum));
+                                logProb += (Math.log(l2*bigramtokenValue)-Math.log(bigramdenominator));
+                            }
+                            else
+                            {
+                                logProb += (Math.log(l1*unigramTokenValue)-Math.log(sum));
+                            }
+                        }
+                    }
+                    totalLogProb+=logProb;
+
+                }
+            }
+            System.out.println("total log prob: "+totalLogProb);
+            l = (totalLogProb/m);
+            //Close the input stream
+            br.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return Math.pow(2,-1*l);
     }
 
     public static double addKevaluateSet(String filePath, int n,int k) {
@@ -590,7 +822,7 @@ public class Main {
 
             //Close the input stream
             br.close();
-            System.out.println(counts);
+           //System.out.println(counts);
             numLinesInTrain = numLines;
 
         } catch (Exception e) {
