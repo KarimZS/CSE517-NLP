@@ -88,7 +88,7 @@ public class Main {
             for (int f : unigram_map.values()) {
                 sum += f;
             }
-        
+
 
         double l = 0;
         try {
@@ -108,11 +108,6 @@ public class Main {
                 ArrayList<String> tokens = new ArrayList<String>(Arrays.asList(strLine.split(" ")));
                 m+=tokens.size();
 
-
-                for (int i = 1; i < n; i++) {
-                    tokens.add(0, startSymbol);
-                }
-
                 tokens.add(stopSymbol);
 
                 //unigram state
@@ -124,13 +119,9 @@ public class Main {
                     for (int i=0;i<tokens.size();i++) {
 
                         String token = tokens.get(i);
-                        int tokenValue = unigram_map.get(token);
-
-                        //System.out.println(" tokenValue: "+tokenValue);
-
-                        //prob *= (tokenValue/sum);
+                        //unigram first word
+                        double tokenValue = unigram_map.get(token);
                         logProb += (Math.log(tokenValue)-Math.log(sum));
-
                     }
                     //System.out.println(strLine+" prob: "+prob);
                     totalLogProb+=logProb;
@@ -140,43 +131,28 @@ public class Main {
                 if(n==2)
                 {
                     double logProb = 0;
-                    boolean foundZero = false;
-                    //double prob = 1;
 
-                    for (int i=1;i<tokens.size();i++) {
+                    for (int i=0;i<tokens.size();i++) {
 
-                        String token = tokens.get(i);
-                        String previouskeyString = tokens.get(i-1);
-                        String keyString = previouskeyString+keySeparator+token;
-                        int tokenValue  = bigram_map.containsKey(keyString) ? bigram_map.get(keyString): 0;
-
-
-                        //System.out.println(" tokenValue: "+tokenValue);
-
-                        //prob *= (tokenValue/sum);
-                        int previousValue = 0;
-                        if(previouskeyString.equals(startSymbol))
+                        if(i==0)
                         {
-                            previousValue = numLinesInTrain;
+                            String token = tokens.get(i);
+                            //unigram first word
+                            double tokenValue = unigram_map.get(token);
+                            logProb += (Math.log(tokenValue)-Math.log(sum));
+
                         }
                         else
                         {
-                            previousValue = unigram_map.containsKey(previouskeyString)?unigram_map.get(previouskeyString):0;
+                            String token = tokens.get(i);
+                            String previous = tokens.get(i-1);
+                            //bigram second word
+                            String keyString = String.join(keySeparator,new String[] {previous,token});
+                            double tokenValue = bigram_map.containsKey(keyString)?bigram_map.get(keyString):0;
+                            logProb += (Math.log(tokenValue)-Math.log(unigram_map.get(previous)));
                         }
-
-                        if(tokenValue == 0 || previousValue == 0)
-                        {
-                            foundZero = true;
-                            logProb = 0;
-                        }
-                        else {
-                            logProb += (Math.log(tokenValue) - Math.log(previousValue));
-                        }
-
                     }
                     //System.out.println(strLine+" prob: "+prob);
-                    if(foundZero)
-                        logProb = 0;
                     totalLogProb+=logProb;
 
                 }
@@ -185,61 +161,40 @@ public class Main {
                 {
                     double logProb = 0;
 
-                    //double prob = 1;
+                    for (int i=0;i<tokens.size();i++) {
 
-                    for (int i=2;i<tokens.size();i++) {
-
-
-                        String token = tokens.get(i);
-                        String previous = tokens.get(i-1);
-                        String twoPrevious = tokens.get(i-2);
-                        double tokenValue = 0;
-                        if(i==2)
+                        if(i==0)
                         {
+                            String token = tokens.get(i);
                             //unigram first word
-                            tokenValue = unigram_map.get(token);
+                            double tokenValue = unigram_map.get(token);
                             logProb += (Math.log(tokenValue)-Math.log(sum));
 
                         }
-                        if(i==3)
+                        else if(i==1)
                         {
+                            String token = tokens.get(i);
+                            String previous = tokens.get(i-1);
                             //bigram second word
                             String keyString = String.join(keySeparator,new String[] {previous,token});
-                            tokenValue = bigram_map.containsKey(keyString)?bigram_map.get(keyString):Double.MIN_VALUE;
+                            double tokenValue = bigram_map.containsKey(keyString)?bigram_map.get(keyString):0;
                             logProb += (Math.log(tokenValue)-Math.log(unigram_map.get(previous)));
                         }
                         else
                         {
+                            String token = tokens.get(i);
+                            String previous = tokens.get(i-1);
+                            String twoPrevious = tokens.get(i-2);
                             String keyString = String.join(keySeparator,new String[] {twoPrevious,previous,token});
                             String previouskeyString = String.join(keySeparator,new String[] {twoPrevious,previous});
-                            tokenValue = trigram_map.containsKey(keyString)?trigram_map.get(keyString):Double.MIN_VALUE;
-                            double previousValue = bigram_map.containsKey(previouskeyString)?bigram_map.get(previouskeyString):Double.MIN_VALUE;
+                            double tokenValue = trigram_map.containsKey(keyString)?trigram_map.get(keyString):Double.MIN_VALUE;
+                            double previousValue = bigram_map.containsKey(previouskeyString)?bigram_map.get(previouskeyString):0;
                             logProb += (Math.log(tokenValue)-Math.log(previousValue));
                         }
 
-
-
-                        //System.out.println(" tokenValue: "+tokenValue);
-                      /*  double previousValue = 0;
-                        if(previouskeyString.equals(String.join(keySeparator,new String[]{startSymbol,startSymbol})))
-                        {
-                            previousValue = numLinesInTrain;
-                        }
-                        else
-                        {
-                            previousValue = bigram_map.containsKey(previouskeyString)?bigram_map.get(previouskeyString):Double.MIN_VALUE;
-                        }
-
-                            logProb += (Math.log(tokenValue)-Math.log(previousValue));*/
-
-                        //prob *= (tokenValue/sum);
-
                     }
-                    //System.out.println(strLine+" prob: "+prob);
-
 
                     totalLogProb+=logProb;
-
                 }
             }
             System.out.println("total log prob: "+totalLogProb);
@@ -362,9 +317,9 @@ public class Main {
 
                 ArrayList<String> tokens = new ArrayList<String>(Arrays.asList(strLine.split(" ")));
 
-                for (int i = 1; i < n; i++) {
-                    tokens.add(0, startSymbol);
-                }
+              //  for (int i = 1; i < n; i++) {
+              //      tokens.add(0, startSymbol);
+              //  }
 
                 tokens.add(stopSymbol);
 
