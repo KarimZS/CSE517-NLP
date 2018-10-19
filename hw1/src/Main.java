@@ -1,4 +1,3 @@
-import com.sun.tools.corba.se.idl.InterfaceGen;
 
 import java.io.*;
 import java.sql.Struct;
@@ -11,10 +10,10 @@ public class Main {
     public static String unkSymbol = "UNK";
     public static String keySeparator = "#";
 
-    public static int unkThreshold = 5;
+    public static int unkThreshold = 2;
     public static int addK = 1;
-    public static double unigramLambda = .2;
-    public static double bigramLambda = .2;
+    public static double unigramLambda = .1;
+    public static double bigramLambda = .3;
     public static double trigramLambda = .6;
 
 
@@ -170,7 +169,7 @@ public class Main {
                             String token = tokens.get(i);
                             //unigram first word
                             double tokenValue = unigram_map.get(token);
-                            logProb += (Math.log(l1*tokenValue)-Math.log(sum));
+                            logProb += l1*(Math.log(tokenValue)-Math.log(sum));
 
                         }
                         else
@@ -198,12 +197,12 @@ public class Main {
 
                             if(tokenValue!=0)
                             {
-                                logProb += (Math.log(l1*unigramTokenValue)-Math.log(sum));
-                                logProb += (Math.log(l2*tokenValue)-Math.log(denominator));
+                                logProb += l1*(Math.log(unigramTokenValue)-Math.log(sum));
+                                logProb += l2*(Math.log(tokenValue)-Math.log(denominator));
                             }
                             else
                             {
-                                logProb += (Math.log(l1*unigramTokenValue)-Math.log(sum));
+                                logProb += l1*(Math.log(unigramTokenValue)-Math.log(sum));
                             }
                         }
                     }
@@ -224,8 +223,7 @@ public class Main {
                             String token = tokens.get(i);
                             //unigram first word
                             double tokenValue = unigram_map.get(token);
-                            logProb += (Math.log(l1*tokenValue)-Math.log(sum));
-
+                            logProb += l1*(Math.log(tokenValue)-Math.log(sum));
                         }
                         else if(i==1)
                         {
@@ -251,12 +249,12 @@ public class Main {
 
                             if(tokenValue!=0)
                             {
-                                logProb += (Math.log(l1*unigramTokenValue)-Math.log(sum));
-                                logProb += (Math.log(l2*tokenValue)-Math.log(denominator));
+                                logProb += l1*(Math.log(l1*unigramTokenValue)-Math.log(sum));
+                                logProb += l2*(Math.log(tokenValue)-Math.log(denominator));
                             }
                             else
                             {
-                                logProb += (Math.log(l1*unigramTokenValue)-Math.log(sum));
+                                logProb += l1*(Math.log(l1*unigramTokenValue)-Math.log(sum));
                             }
                         }
                         else
@@ -301,18 +299,18 @@ public class Main {
 
                             if(tokenValue!=0&&bigramtokenValue!=0)
                             {
-                                logProb += (Math.log(l1*unigramTokenValue)-Math.log(sum));
-                                logProb += (Math.log(l2*bigramtokenValue)-Math.log(bigramdenominator));
-                                logProb += (Math.log(l3*tokenValue)-Math.log(denominator));
+                                logProb += l1*(Math.log(l1*unigramTokenValue)-Math.log(sum));
+                                logProb += l2*(Math.log(bigramtokenValue)-Math.log(bigramdenominator));
+                                logProb += l3*(Math.log(tokenValue)-Math.log(denominator));
                             }
                             else if(bigramtokenValue!=0)
                             {
-                                logProb += (Math.log(l1*unigramTokenValue)-Math.log(sum));
-                                logProb += (Math.log(l2*bigramtokenValue)-Math.log(bigramdenominator));
+                                logProb += l1*(Math.log(l1*unigramTokenValue)-Math.log(sum));
+                                logProb += l2*(Math.log(bigramtokenValue)-Math.log(bigramdenominator));
                             }
                             else
                             {
-                                logProb += (Math.log(l1*unigramTokenValue)-Math.log(sum));
+                                logProb += l1*(Math.log(unigramTokenValue)-Math.log(sum));
                             }
                         }
                     }
