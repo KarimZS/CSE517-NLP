@@ -1,23 +1,18 @@
 
 import java.io.*;
-import java.sql.Struct;
 import java.util.*;
 
 public class Main {
 
-    public static String startSymbol = "START";
     public static String stopSymbol = "STOP";
     public static String unkSymbol = "UNK";
     public static String keySeparator = "#";
 
     public static int unkThreshold = 2;
-    public static int addK = 1;
+    public static double addK = .01;
     public static double unigramLambda = .1;
     public static double bigramLambda = .3;
     public static double trigramLambda = .6;
-
-
-
 
     public static HashMap<String, Integer> unigram_map = null;
     public static HashMap<String, HashMap<String, Integer>> bigram_map = null;
@@ -26,13 +21,13 @@ public class Main {
 
 
     public static void main(String[] args) {
-        // write your code here
+
         String trainFilePath = "CSE517-HW1-Data/prob1_brown_full/brown.train.txt";
         String devFilePath = "CSE517-HW1-Data/prob1_brown_full/brown.dev.txt";
         String testFilePath = "CSE517-HW1-Data/prob1_brown_full/brown.test.txt";
 
 
-        //get words with count less than 2
+        //get words with count less than unkThreshold
         HashMap<String, Integer> words = token_count(trainFilePath);
         HashMap<String, Integer> wordsFiltered = new HashMap<>();
 
@@ -48,7 +43,7 @@ public class Main {
         String devNewFilePath = "CSE517-HW1-Data/prob1_brown_full/brown.dev.filtered.txt";
         String testNewFilePath = "CSE517-HW1-Data/prob1_brown_full/brown.test.filtered.txt";
 
-        //go through file and replace all less than 2 words with UNK
+        //go through file and replace all less than unkthreshold words with UNK
         remove_low_freq_words(trainFilePath,trainNewFilePath,wordsFiltered);
         remove_low_freq_words(devFilePath,devNewFilePath,wordsFiltered);
         remove_low_freq_words(testFilePath,testNewFilePath,wordsFiltered);
@@ -59,58 +54,62 @@ public class Main {
         bigram_map = bigram_count(trainNewFilePath);
         trigram_map =  trigram_count(trainNewFilePath);
 
+        System.out.println();
+
         //run on train,dev,test and give prob of each sentence
         System.out.println("UNIGRAM PROBABILITIES");
         double trainUnigramPerplexity = evaluateSet(trainNewFilePath,1);
-        System.out.println(trainUnigramPerplexity);
+        System.out.println("Train "+trainUnigramPerplexity);
         double devUnigramPerplexity = evaluateSet(devNewFilePath,1);
-        System.out.println(devUnigramPerplexity);
+        System.out.println("Dev "+devUnigramPerplexity);
         double testUnigramPerplexity = evaluateSet(testNewFilePath,1);
-        System.out.println(testUnigramPerplexity);
+        System.out.println("Test "+testUnigramPerplexity);
+
+        System.out.println();
 
         //run on train,dev,test and give prob of each sentence
         System.out.println("BIGRAM PROBABILITIES");
         double trainBigramPerplexity = evaluateSet(trainNewFilePath,2);
-        System.out.println(trainBigramPerplexity);
+        System.out.println("Train "+trainBigramPerplexity);
         double devBigramPerplexity = evaluateSet(devNewFilePath,2);
-        System.out.println(devBigramPerplexity);
+        System.out.println("Dev "+devBigramPerplexity);
         double testBigramPerplexity = evaluateSet(testNewFilePath,2);
-        System.out.println(testBigramPerplexity);
+        System.out.println("Test "+testBigramPerplexity);
 
-        System.out.println("BIGRAM PROBABILITIES-Add K Smoothed");
-        double addKtrainBigramPerplexity = addKevaluateSet(trainNewFilePath,2,addK);
-        System.out.println(addKtrainBigramPerplexity);
-        double addKdevBigramPerplexity = addKevaluateSet(devNewFilePath,2,addK);
-        System.out.println(addKdevBigramPerplexity);
-        double addKtestBigramPerplexity = addKevaluateSet(testNewFilePath,2,addK);
-        System.out.println(addKtestBigramPerplexity);
+        System.out.println();
 
         //run on train,dev,test and give prob of each sentence
         System.out.println("TRIGRAM PROBABILITIES");
         double trainTrigramPerplexity = evaluateSet(trainNewFilePath,3);
-        System.out.println(trainTrigramPerplexity);
+        System.out.println("Train "+trainTrigramPerplexity);
         double devTrigramPerplexity = evaluateSet(devNewFilePath,3);
-        System.out.println(devTrigramPerplexity);
+        System.out.println("Dev "+devTrigramPerplexity);
         double testTrigramPerplexity = evaluateSet(testNewFilePath,3);
-        System.out.println(testTrigramPerplexity);
+        System.out.println("Test "+testTrigramPerplexity);
+
+        System.out.println();
 
         System.out.println("TRIGRAM PROBABILITIES-Add K Smoothed");
         double addKtrainTrigramPerplexity = addKevaluateSet(trainNewFilePath,3,addK);
-        System.out.println(addKtrainTrigramPerplexity);
+        System.out.println("Train "+addKtrainTrigramPerplexity);
         double addKdevTrigramPerplexity = addKevaluateSet(devNewFilePath,3,addK);
-        System.out.println(addKdevTrigramPerplexity);
+        System.out.println("Dev "+addKdevTrigramPerplexity);
         double addKtestTrigramPerplexity = addKevaluateSet(testNewFilePath,3,addK);
-        System.out.println(addKtestTrigramPerplexity);
+        System.out.println("Test "+addKtestTrigramPerplexity);
+
+        System.out.println();
 
         System.out.println("TRIGRAM PROBABILITIES-Linear Interpolation Smoothed");
         double lininttrainTrigramPerplexity = linearInterpolationevaluateSet(trainNewFilePath,3,unigramLambda,bigramLambda,trigramLambda);
-        System.out.println(lininttrainTrigramPerplexity);
+        System.out.println("Train "+lininttrainTrigramPerplexity);
         double linintdevTrigramPerplexity = linearInterpolationevaluateSet(devNewFilePath,3,unigramLambda,bigramLambda,trigramLambda);
-        System.out.println(linintdevTrigramPerplexity);
+        System.out.println("Dev "+linintdevTrigramPerplexity);
         double lininttestTrigramPerplexity = linearInterpolationevaluateSet(testNewFilePath,3,unigramLambda,bigramLambda,trigramLambda);
-        System.out.println(lininttestTrigramPerplexity);
+        System.out.println("Test "+lininttestTrigramPerplexity);
 
     }
+
+
     public static double linearInterpolationevaluateSet(String filePath, int n,double l1,double l2,double l3) {
 
         int sum = 0;
@@ -144,7 +143,6 @@ public class Main {
                 if(n==1)
                 {
                     double logProb = 0;
-                    //double prob = 1;
 
                     for (int i=0;i<tokens.size();i++) {
 
@@ -153,7 +151,6 @@ public class Main {
                         double tokenValue = unigram_map.get(token);
                         logProb += (Math.log(l1*tokenValue)-Math.log(sum));
                     }
-                    //System.out.println(strLine+" prob: "+prob);
                     totalLogProb+=logProb;
 
                 }
@@ -174,7 +171,6 @@ public class Main {
                         }
                         else
                         {
-
                             String token = tokens.get(i);
                             String previous = tokens.get(i-1);
 
@@ -206,14 +202,12 @@ public class Main {
                             }
                         }
                     }
-                    //System.out.println(strLine+" prob: "+prob);
                     totalLogProb+=logProb;
 
                 }
 
                 if(n==3)
                 {
-
                     double logProb = 0;
 
                     for (int i=0;i<tokens.size();i++) {
@@ -330,7 +324,7 @@ public class Main {
         return Math.pow(2,-1*l);
     }
 
-    public static double addKevaluateSet(String filePath, int n,int k) {
+    public static double addKevaluateSet(String filePath, int n,double k) {
 
         int sum = 0;
 
@@ -372,7 +366,6 @@ public class Main {
                         double tokenValue = unigram_map.get(token);
                         logProb += (Math.log(tokenValue)-Math.log(sum));
                     }
-                    //System.out.println(strLine+" prob: "+prob);
                     totalLogProb+=logProb;
 
                 }
@@ -408,7 +401,6 @@ public class Main {
                             logProb += (Math.log(tokenValue+k)-Math.log(denominator));
                         }
                     }
-                    //System.out.println(strLine+" prob: "+prob);
                     totalLogProb+=logProb;
 
                 }
@@ -517,7 +509,6 @@ public class Main {
                 if(n==1)
                 {
                    double logProb = 0;
-                   //double prob = 1;
 
                     for (int i=0;i<tokens.size();i++) {
 
@@ -526,7 +517,6 @@ public class Main {
                         double tokenValue = unigram_map.get(token);
                         logProb += (Math.log(tokenValue)-Math.log(sum));
                     }
-                    //System.out.println(strLine+" prob: "+prob);
                     totalLogProb+=logProb;
 
                 }
@@ -568,14 +558,12 @@ public class Main {
                             logProb += (Math.log(tokenValue)-Math.log(denominator));
                         }
                     }
-                    //System.out.println(strLine+" prob: "+prob);
                     totalLogProb+=logProb;
 
                 }
 
                 if(n==3)
                 {
-
                     double logProb = 0;
 
                     for (int i=0;i<tokens.size();i++) {
@@ -636,42 +624,6 @@ public class Main {
                     }
 
                     totalLogProb+=logProb;
-                    /*double logProb = 0;
-
-                    for (int i=0;i<tokens.size();i++) {
-
-                        if(i==0)
-                        {
-                            String token = tokens.get(i);
-                            //unigram first word
-                            double tokenValue = unigram_map.get(token);
-                            logProb += (Math.log(tokenValue)-Math.log(sum));
-
-                        }
-                        else if(i==1)
-                        {
-                            String token = tokens.get(i);
-                            String previous = tokens.get(i-1);
-                            //bigram second word
-                            String keyString = String.join(keySeparator,new String[] {previous,token});
-                            double tokenValue = bigram_map.containsKey(keyString)?bigram_map.get(keyString):0;
-                            logProb += (Math.log(tokenValue)-Math.log(unigram_map.get(previous)));
-                        }
-                        else
-                        {
-                            String token = tokens.get(i);
-                            String previous = tokens.get(i-1);
-                            String twoPrevious = tokens.get(i-2);
-                            String keyString = String.join(keySeparator,new String[] {twoPrevious,previous,token});
-                            String previouskeyString = String.join(keySeparator,new String[] {twoPrevious,previous});
-                            double tokenValue = trigram_map.containsKey(keyString)?trigram_map.get(keyString):0;
-                            double previousValue = bigram_map.containsKey(previouskeyString)?bigram_map.get(previouskeyString):0;
-                            logProb += (Math.log(tokenValue)-Math.log(previousValue));
-                        }
-
-                    }
-
-                    totalLogProb+=logProb;*/
                 }
             }
             System.out.println("total log prob: "+totalLogProb);
@@ -761,14 +713,6 @@ public class Main {
             e.printStackTrace();
         }
 
-     /*   for (String name: counts.keySet()){
-
-            String key =name;
-            String value = counts.get(name).toString();
-            System.out.println(key + " " + value);
-
-
-        }*/
         return counts;
     }
 
@@ -827,14 +771,6 @@ public class Main {
             e.printStackTrace();
         }
 
-      /*  for (String name : counts.keySet()) {
-
-            String key = name;
-            String value = counts.get(name).toString();
-            System.out.println(key + " " + value);
-
-
-        }*/
         return counts;
     }
 
@@ -860,10 +796,6 @@ public class Main {
 
                 ArrayList<String> tokens = new ArrayList<String>(Arrays.asList(strLine.split(" ")));
 
-                //  for (int i = 1; i < n; i++) {
-                //      tokens.add(0, startSymbol);
-                //  }
-
                 tokens.add(stopSymbol);
 
                 for (int i = 1; i < tokens.size(); i++) {
@@ -871,7 +803,6 @@ public class Main {
                     String token = tokens.get(i);
                     int value =0;
 
-                    //String keyString = String.join(keySeparator, new String[] {twoPrevious,previous});
                     if(res.containsKey(previous))
                     {
                         HashMap<String, Integer> temp = res.get(previous);
@@ -908,14 +839,6 @@ public class Main {
             e.printStackTrace();
         }
 
-      /*  for (String name : counts.keySet()) {
-
-            String key = name;
-            String value = counts.get(name).toString();
-            System.out.println(key + " " + value);
-
-
-        }*/
         return res;
     }
 
@@ -940,10 +863,6 @@ public class Main {
                 numLines+=1;
 
                 ArrayList<String> tokens = new ArrayList<String>(Arrays.asList(strLine.split(" ")));
-
-                //  for (int i = 1; i < n; i++) {
-                //      tokens.add(0, startSymbol);
-                //  }
 
                 tokens.add(stopSymbol);
 
@@ -979,8 +898,6 @@ public class Main {
                 // Print the content on the console
                 // System.out.println(strLine);
             }
-
-
             //Close the input stream
             br.close();
             //System.out.println(counts);
@@ -990,14 +907,6 @@ public class Main {
             e.printStackTrace();
         }
 
-      /*  for (String name : counts.keySet()) {
-
-            String key = name;
-            String value = counts.get(name).toString();
-            System.out.println(key + " " + value);
-
-
-        }*/
         return res;
     }
 }
