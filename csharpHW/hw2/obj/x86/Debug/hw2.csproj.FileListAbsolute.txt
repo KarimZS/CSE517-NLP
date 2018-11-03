@@ -7,3 +7,13 @@
 /Users/karim/Documents/uwash/csep 517 - nlp/repo/CSE517-NLP/csharpHW/hw2/bin/Debug/Newtonsoft.Json.dll
 /Users/karim/Documents/uwash/csep 517 - nlp/repo/CSE517-NLP/csharpHW/hw2/bin/Debug/Newtonsoft.Json.xml
 /Users/karim/Documents/uwash/csep 517 - nlp/repo/CSE517-NLP/csharpHW/hw2/obj/x86/Debug/hw2.csproj.CopyComplete
+C:\Users\karim\OneDrive\Documents\uwash\fall18\repo\CSE517-NLP\csharpHW\hw2\bin\Debug\hw2.exe.config
+C:\Users\karim\OneDrive\Documents\uwash\fall18\repo\CSE517-NLP\csharpHW\hw2\bin\Debug\hw2.exe
+C:\Users\karim\OneDrive\Documents\uwash\fall18\repo\CSE517-NLP\csharpHW\hw2\bin\Debug\hw2.pdb
+C:\Users\karim\OneDrive\Documents\uwash\fall18\repo\CSE517-NLP\csharpHW\hw2\bin\Debug\Newtonsoft.Json.dll
+C:\Users\karim\OneDrive\Documents\uwash\fall18\repo\CSE517-NLP\csharpHW\hw2\bin\Debug\Newtonsoft.Json.xml
+C:\Users\karim\OneDrive\Documents\uwash\fall18\repo\CSE517-NLP\csharpHW\hw2\obj\x86\Debug\hw2.csprojAssemblyReference.cache
+C:\Users\karim\OneDrive\Documents\uwash\fall18\repo\CSE517-NLP\csharpHW\hw2\obj\x86\Debug\hw2.csproj.CoreCompileInputs.cache
+C:\Users\karim\OneDrive\Documents\uwash\fall18\repo\CSE517-NLP\csharpHW\hw2\obj\x86\Debug\hw2.csproj.CopyComplete
+C:\Users\karim\OneDrive\Documents\uwash\fall18\repo\CSE517-NLP\csharpHW\hw2\obj\x86\Debug\hw2.exe
+C:\Users\karim\OneDrive\Documents\uwash\fall18\repo\CSE517-NLP\csharpHW\hw2\obj\x86\Debug\hw2.pdb
