@@ -46,6 +46,7 @@
     <None Include="CSE517_HW_HMM_Data\twt.test.json" />
     <None Include="CSE517_HW_HMM_Data\twt.train.json" />
     <None Include="packages.config" />
+    <None Include="CSE517_HW_HMM_Data\twt.train.filtered.json" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
