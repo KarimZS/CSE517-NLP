@@ -12,21 +12,24 @@ namespace hw2
         public static string startWord = "*START*";
         public static string stopWord = "*STOP*";
         public static int unkCount = 2;
-        public static double lambda1 = 0.1;
-        public static double lambda2 = 0.9;
+        public static double lambda1 = 0.01;
+        public static double lambda2 = 0.99;
+        public static double k = 1;
+        public static double sentenceCount=0;
 
 
+        public static Dictionary<string, int> wordSet;
         public static void Main(string[] args)
         {
 
-            Dictionary<String, Dictionary<String, int>> transitionCounts = new Dictionary<string, Dictionary<string, int>>();
-            Dictionary<String, Dictionary<String, int>> emissionCounts = new Dictionary<string, Dictionary<string, int>>();
+            Dictionary<String, Dictionary<String, double>> transitionCounts = new Dictionary<string, Dictionary<string, double>>();
+            Dictionary<String, Dictionary<String, double>> emissionCounts = new Dictionary<string, Dictionary<string, double>>();
             HashSet<string> stateSet = new HashSet<string>();
 
 
             var trainDataPath = @"../../CSE517_HW_HMM_Data/twt.train.json";
             var filteredTraininDataPath = @"../../CSE517_HW_HMM_Data/twt.train.filtered.json";
-            var wordSet = handleUnkown(trainDataPath, filteredTraininDataPath, unkCount);
+            wordSet = handleUnkown(trainDataPath, filteredTraininDataPath, unkCount);
 
             //read train data
 
@@ -61,7 +64,7 @@ namespace hw2
                         }
                         else
                         {
-                            var wordDictionary = new Dictionary<string, int>();
+                            var wordDictionary = new Dictionary<string, double>();
                             wordDictionary.Add(word, 1);
                             emissionCounts.Add(tag, wordDictionary);
                         }
@@ -82,7 +85,7 @@ namespace hw2
                         }
                         else
                         {
-                            var tagDictionary = new Dictionary<string, int>();
+                            var tagDictionary = new Dictionary<string, double>();
                             tagDictionary.Add(nextTag, 1);
                             transitionCounts.Add(tag, tagDictionary);
                         }
@@ -105,7 +108,7 @@ namespace hw2
                     }
                     else
                     {
-                        var wordDictionary = new Dictionary<string, int>();
+                        var wordDictionary = new Dictionary<string, double>();
                         wordDictionary.Add(lastWord, 1);
                         emissionCounts.Add(lastTag, wordDictionary);
                     }
@@ -125,27 +128,50 @@ namespace hw2
                     }
                     else
                     {
-                        var tagDictionary = new Dictionary<string, int>();
+                        var tagDictionary = new Dictionary<string, double>();
                         tagDictionary.Add(stopWord, 1);
                         transitionCounts.Add(lastTag, tagDictionary);
                     }
+
+                    //add stop
+                    sentenceCount++;
                 }
             }
             Console.WriteLine(emissionCounts.Count);
             Console.WriteLine(transitionCounts.Count);
 
             stateSet.Remove(startWord);
-            Console.WriteLine(stateSet);
 
+            //smooth emissions add -k 
+            var newEmission =new Dictionary<String, Dictionary<String, double>>();
+            foreach(var tag in emissionCounts)
+            {
+                if(tag.Value.ContainsKey(unkWord))
+                {
+                    newEmission.Add(tag.Key, tag.Value);
+                    continue;
+                }
+                else
+                {
+                    var temp = new Dictionary<string, double>();
+                    foreach (var emission in tag.Value)
+                    {
+                        temp.Add(emission.Key, emission.Value + k);
+                    }
+                    temp.Add(unkWord, k);
+                    newEmission.Add(tag.Key,temp);
+                }
+
+            }
 
             //start the vetrbi 
-            forwardViterbi(trainDataPath, transitionCounts, emissionCounts, stateSet);
+            forwardViterbi(trainDataPath, transitionCounts, newEmission, stateSet);
 
         }
 
         public static Dictionary<string, int> handleUnkown(string dataPath, string outputPath, int unk)
         {
-            Dictionary<string, int> wordSet = new Dictionary<string, int>();
+            Dictionary<string, int> wordSetL = new Dictionary<string, int>();
 
             using (StreamReader reader = new StreamReader(dataPath))
             {
@@ -155,18 +181,18 @@ namespace hw2
                     var obj = JsonConvert.DeserializeObject<List<List<string>>>(line);
                     foreach (var pair in obj)
                     {
-                        if (wordSet.ContainsKey(pair[0]))
+                        if (wordSetL.ContainsKey(pair[0]))
                         {
-                            wordSet[pair[0]] += 1;
+                            wordSetL[pair[0]] += 1;
                         }
                         else
                         {
-                            wordSet.Add(pair[0], 1);
+                            wordSetL.Add(pair[0], 1);
                         }
                     }
                 }
             }
-            Dictionary<string, int> filteredWordSet = wordSet.Where(x => (x.Value >= unk)).ToDictionary(x => x.Key, x => x.Value);
+            Dictionary<string, int> filteredWordSet = wordSetL.Where(x => (x.Value >= unk)).ToDictionary(x => x.Key, x => x.Value);
             filteredWordSet.Add(unkWord, 0);
 
 
@@ -195,7 +221,7 @@ namespace hw2
             return filteredWordSet;
         }
 
-        public static void forwardViterbi(string dataSet, Dictionary<String, Dictionary<String, int>> transitionCounts, Dictionary<String, Dictionary<String, int>> emissionCounts, HashSet<string> stateSet)
+        public static void forwardViterbi(string dataSet, Dictionary<String, Dictionary<String, double>> transitionCounts, Dictionary<String, Dictionary<String, double>> emissionCounts, HashSet<string> stateSet)
         {
             using (StreamReader reader = new StreamReader(dataSet))
             {
@@ -211,7 +237,8 @@ namespace hw2
                     foreach (var tag in stateSet)
                     {
                         var key = "" + i + " " + tag;
-                        double prob = logProbTransition(transitionCounts, startWord, tag) + logProbEmission(emissionCounts, tag, dataObject[i][0]);
+                        var word = wordSet.ContainsKey(dataObject[i][0]) ? dataObject[i][0] : unkWord;
+                        double prob = logProbTransition(transitionCounts, startWord, tag) + logProbEmission(emissionCounts, tag, word);
                         bestScore.Add(key, prob);
                         bestTag.Add(key, startWord);
                     }
@@ -219,7 +246,7 @@ namespace hw2
                     //middle
                     for (i = 1; i < dataObject.Count; i++)
                     {
-                        var word = dataObject[i][0];
+                        var word = wordSet.ContainsKey(dataObject[i][0]) ? dataObject[i][0] : unkWord;
                         foreach (var tag in stateSet)
                         {
                             foreach (var prevTag in stateSet)
@@ -287,32 +314,63 @@ namespace hw2
             }
         }
 
-        public static double logProbTransition(Dictionary<String, Dictionary<String, int>> dict, string first, string second)
+        public static double logProbTransition(Dictionary<String, Dictionary<String, double>> dict, string first, string second)
         {
             //bigram
-            double numerator = dict.ContainsKey(first) ? dict[first].ContainsKey(second) ? dict[first][second] : 0 : 0;
-            double denominator = dict.ContainsKey(first) ? dict[first].Sum(x => x.Value) : 0;
-            double division = denominator == 0 ? 0 : (numerator / denominator);
-            double log = division == 0 ? 0 : Math.Log(division);
+            double numerator = dict[first].ContainsKey(second) ? dict[first][second] : 0;
+            double denominator = dict[first].Sum(x => x.Value);
+            double logdivision;
+            if (numerator==0)
+            {
+                logdivision = double.MinValue;
+            }
+            else{
+                double lognm = Math.Log(numerator);
+                double logdm = Math.Log(denominator);
+                logdivision = lognm - logdm;
+            }
+
 
             //unigram
-            double uniNumerator = dict.ContainsKey(second) ? dict[second].Sum(x => x.Value) : 0;
+            double uniNumerator;
+            if (second==stopWord)
+            {
+                uniNumerator = sentenceCount;//times we have seen a stop
+            }
+            else{
+                uniNumerator = dict[second].Sum(x => x.Value);
+            }
             double uniDenominator = dict.Sum(x => x.Value.Sum(y => y.Value));
-            double uniDivision = uniNumerator / uniDenominator;
-            double uniLog = uniDivision == 0 ? 0 : Math.Log(uniDivision);
+            double uninmlog = Math.Log(uniNumerator);
+            double unidmlog = Math.Log(uniDenominator);
+            double uniDivision = uninmlog - unidmlog;
 
-            return lambda2 * log + lambda1 * uniLog;
+
+            return lambda2 * logdivision + lambda1 * uniDivision;
         }
 
-        public static double logProbEmission(Dictionary<String, Dictionary<String, int>> dict, string first, string second)
+        public static double logProbEmission(Dictionary<String, Dictionary<String, double>> dict, string first, string second)
         {
+            if(first==stopWord&&second==stopWord)
+            {
+                return 0;
+            }
             //bigram
-            double numerator = dict.ContainsKey(first) ? (dict[first].ContainsKey(second) ? dict[first][second] : (dict[first].ContainsKey(unkWord) ? dict[first][unkWord] : 0)) : 0;
-            double denominator = dict.ContainsKey(first) ? dict[first].Sum(x => x.Value) : 0;
-            double division = denominator == 0 ? 0 : (numerator / denominator);
-            double log = division == 0 ? 0 : Math.Log(division);
+            double numerator = dict[first].ContainsKey(second) ? dict[first][second] : dict[first][unkWord];
+            double denominator =dict[first].Sum(x => x.Value) ;
+            var lognm = Math.Log(numerator);
+            var logdm = Math.Log(denominator);
+            double logdivision =  lognm - logdm;
 
-            return log;
+            ////signle
+            //var singleNum = wordSet.ContainsKey(second) ? wordSet[second]: wordSet[unkWord];
+            //var sum = wordSet.Sum(x => x.Value);
+            //var singleDivision = singleNum / sum;
+            //var singleLog = division == 0 ? 0 : Math.Log(division);
+
+            //return lambda2 * log + lambda1 * singleLog;
+
+            return logdivision;
         }
     }
 }
