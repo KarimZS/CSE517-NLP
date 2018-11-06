@@ -15,7 +15,7 @@ namespace hw2
         public static double lambda1 = 0.01;
         public static double lambda2 = 0.99;
         public static double k = 1;
-        public static double sentenceCount=0;
+        public static double sentenceCount = 0;
 
 
         public static Dictionary<string, int> wordSet;
@@ -143,10 +143,10 @@ namespace hw2
             stateSet.Remove(startWord);
 
             //smooth emissions add -k 
-            var newEmission =new Dictionary<String, Dictionary<String, double>>();
-            foreach(var tag in emissionCounts)
+            var newEmission = new Dictionary<String, Dictionary<String, double>>();
+            foreach (var tag in emissionCounts)
             {
-                if(tag.Value.ContainsKey(unkWord))
+                if (tag.Value.ContainsKey(unkWord))
                 {
                     newEmission.Add(tag.Key, tag.Value);
                     continue;
@@ -159,14 +159,96 @@ namespace hw2
                         temp.Add(emission.Key, emission.Value + k);
                     }
                     temp.Add(unkWord, k);
-                    newEmission.Add(tag.Key,temp);
+                    newEmission.Add(tag.Key, temp);
                 }
 
             }
 
             //start the vetrbi 
-            forwardViterbi(trainDataPath, transitionCounts, newEmission, stateSet);
+            string outputPath = @"../../Results/twt.train.results.json";
+            forwardViterbi(trainDataPath, outputPath, transitionCounts, newEmission, stateSet);
 
+            var confusionMatrix = new Dictionary<string, Dictionary<string, int>>();
+            var completeTagSet = new HashSet<string>();
+
+            using (StreamReader expectedReader = new StreamReader(trainDataPath))
+            {
+                using (StreamReader predictedReader = new StreamReader(outputPath))
+                {
+                    while (!expectedReader.EndOfStream)
+                    {
+                        var expectedLine = expectedReader.ReadLine();
+                        var expectedObj = JsonConvert.DeserializeObject<List<List<string>>>(expectedLine);
+                        var predictedLine = predictedReader.ReadLine();
+                        var predictedObj = JsonConvert.DeserializeObject<List<List<string>>>(predictedLine);
+
+                        for (int i = 0; i < expectedObj.Count-1; i++)
+                        {
+                            var expectedTag = expectedObj[i][1];
+                            var predictedTag = predictedObj[i][1];
+
+                            completeTagSet.Add(expectedTag);
+                            completeTagSet.Add(predictedTag);
+
+                            if (confusionMatrix.ContainsKey(expectedTag))
+                            {
+                                var expectedlist = confusionMatrix[expectedTag];
+                                if (expectedlist.ContainsKey(predictedTag))
+                                {
+                                    expectedlist[predictedTag]++;
+                                }
+                                else
+                                {
+                                    expectedlist.Add(predictedTag, 1);
+                                }
+                            }
+                            else
+                            {
+                                var temp = new Dictionary<string, int>();
+                                temp.Add(predictedTag, 1);
+                                confusionMatrix.Add(expectedTag, temp);
+                            }
+                        }
+                    }
+                }
+            }
+
+            var confusionOutput = @"../../Results/twt.train.confusion.txt";
+            List<string> lines = new List<string>();
+            var header = "\t\t ";
+            foreach (var tag in completeTagSet)
+            {
+                header += tag + "\t";
+                var line = tag + "\t";
+                foreach (var secondTag in completeTagSet)
+                {
+                    if (confusionMatrix.ContainsKey(tag))
+                    {
+                        var expectedlist = confusionMatrix[tag];
+                        if (expectedlist.ContainsKey(secondTag))
+                        {
+                            line += confusionMatrix[tag][secondTag] + "\t";
+                        }
+                        else
+                        {
+                            line += 0 + "\t";
+                        }
+                    }
+                    else
+                    {
+                        line += 0 + "\t";
+                    }
+                }
+                lines.Add(line);
+            }
+            using (StreamWriter writer = new StreamWriter(confusionOutput))
+            {
+                writer.WriteLine(header);
+                foreach (var line in lines)
+                {
+                    writer.WriteLine(line);
+                }
+            }
         }
 
         public static Dictionary<string, int> handleUnkown(string dataPath, string outputPath, int unk)
@@ -221,11 +303,13 @@ namespace hw2
             return filteredWordSet;
         }
 
-        public static void forwardViterbi(string dataSet, Dictionary<String, Dictionary<String, double>> transitionCounts, Dictionary<String, Dictionary<String, double>> emissionCounts, HashSet<string> stateSet)
+        public static void forwardViterbi(string dataSet, string outputPath, Dictionary<String, Dictionary<String, double>> transitionCounts, Dictionary<String, Dictionary<String, double>> emissionCounts, HashSet<string> stateSet)
         {
             using (StreamReader reader = new StreamReader(dataSet))
             {
-                while (!reader.EndOfStream)
+                using (StreamWriter writer = new StreamWriter(outputPath))
+                {
+                    while (!reader.EndOfStream)
                 {
                     var line = reader.ReadLine();
                     var dataObject = JsonConvert.DeserializeObject<List<List<string>>>(line);
@@ -303,11 +387,24 @@ namespace hw2
 
                     List<string> tags = new List<string>();
 
-                    var currentTag = i+" "+stopWord;
+                    var currentTag = i + " " + stopWord;
                     while (!currentTag.Equals(startWord))
                     {
                         tags.Insert(0, bestTag[currentTag]);
                         currentTag = bestTag[currentTag];
+                    }
+
+                    var outobj = new List<List<string>>();
+                  
+                        for (int m = 1; m < dataObject.Count; m++)
+                        {
+                            var tuple = new List<string>();
+                            tuple.Add(dataObject[m-1][0]);
+                            tuple.Add(tags[m].Split(' ')[1]);
+                            outobj.Add(tuple);
+                        }
+                        var json = JsonConvert.SerializeObject(outobj);
+                        writer.WriteLine(json);
                     }
 
                 }
@@ -320,11 +417,12 @@ namespace hw2
             double numerator = dict[first].ContainsKey(second) ? dict[first][second] : 0;
             double denominator = dict[first].Sum(x => x.Value);
             double logdivision;
-            if (numerator==0)
+            if (numerator == 0)
             {
                 logdivision = double.MinValue;
             }
-            else{
+            else
+            {
                 double lognm = Math.Log(numerator);
                 double logdm = Math.Log(denominator);
                 logdivision = lognm - logdm;
@@ -333,11 +431,12 @@ namespace hw2
 
             //unigram
             double uniNumerator;
-            if (second==stopWord)
+            if (second == stopWord)
             {
                 uniNumerator = sentenceCount;//times we have seen a stop
             }
-            else{
+            else
+            {
                 uniNumerator = dict[second].Sum(x => x.Value);
             }
             double uniDenominator = dict.Sum(x => x.Value.Sum(y => y.Value));
@@ -351,16 +450,16 @@ namespace hw2
 
         public static double logProbEmission(Dictionary<String, Dictionary<String, double>> dict, string first, string second)
         {
-            if(first==stopWord&&second==stopWord)
+            if (first == stopWord && second == stopWord)
             {
                 return 0;
             }
             //bigram
             double numerator = dict[first].ContainsKey(second) ? dict[first][second] : dict[first][unkWord];
-            double denominator =dict[first].Sum(x => x.Value) ;
+            double denominator = dict[first].Sum(x => x.Value);
             var lognm = Math.Log(numerator);
             var logdm = Math.Log(denominator);
-            double logdivision =  lognm - logdm;
+            double logdivision = lognm - logdm;
 
             ////signle
             //var singleNum = wordSet.ContainsKey(second) ? wordSet[second]: wordSet[unkWord];
