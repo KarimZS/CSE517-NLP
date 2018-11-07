@@ -40,12 +40,12 @@ namespace hw2
                     var line = reader.ReadLine();
                     var obj = JsonConvert.DeserializeObject<List<List<string>>>(line);
                     obj.Insert(0, new List<string> { startWord, startWord });
-                    for (int i = 0; i < obj.Count - 1; i++)
+                    for (int i = 1; i < obj.Count; i++)
                     {
 
                         var word = obj[i][0];
                         var tag = obj[i][1];
-                        var nextTag = obj[i + 1][1];
+                        var prevTag = obj[i -1][1];
 
                         stateSet.Add(tag);
 
@@ -71,52 +71,31 @@ namespace hw2
 
                         //transition
 
-                        if (transitionCounts.ContainsKey(tag))
+                        if (transitionCounts.ContainsKey(prevTag))
                         {
-                            var tagValues = transitionCounts[tag];
-                            if (tagValues.ContainsKey(nextTag))
+                            var tagValues = transitionCounts[prevTag];
+                            if (tagValues.ContainsKey(tag))
                             {
-                                tagValues[nextTag]++;
+                                tagValues[tag]++;
                             }
                             else
                             {
-                                tagValues.Add(nextTag, 1);
+                                tagValues.Add(tag, 1);
                             }
                         }
                         else
                         {
                             var tagDictionary = new Dictionary<string, double>();
-                            tagDictionary.Add(nextTag, 1);
-                            transitionCounts.Add(tag, tagDictionary);
+                            tagDictionary.Add(tag, 1);
+                            transitionCounts.Add(prevTag, tagDictionary);
                         }
 
                     }
-                    //handle last on in list
-                    var lastWord = obj[obj.Count - 1][0];
-                    var lastTag = obj[obj.Count - 1][1];
-                    if (emissionCounts.ContainsKey(lastTag))
+                    //handle last transition to stop in list
+                    
+                    if (transitionCounts.ContainsKey(obj.Last()[1]))
                     {
-                        var tagValues = emissionCounts[lastTag];
-                        if (tagValues.ContainsKey(lastWord))
-                        {
-                            tagValues[lastWord]++;
-                        }
-                        else
-                        {
-                            tagValues.Add(lastWord, 1);
-                        }
-                    }
-                    else
-                    {
-                        var wordDictionary = new Dictionary<string, double>();
-                        wordDictionary.Add(lastWord, 1);
-                        emissionCounts.Add(lastTag, wordDictionary);
-                    }
-
-                    //transition
-                    if (transitionCounts.ContainsKey(lastTag))
-                    {
-                        var tagValues = transitionCounts[lastTag];
+                        var tagValues = transitionCounts[obj.Last()[1]];
                         if (tagValues.ContainsKey(stopWord))
                         {
                             tagValues[stopWord]++;
@@ -130,10 +109,10 @@ namespace hw2
                     {
                         var tagDictionary = new Dictionary<string, double>();
                         tagDictionary.Add(stopWord, 1);
-                        transitionCounts.Add(lastTag, tagDictionary);
+                        transitionCounts.Add(obj.Last()[1], tagDictionary);
                     }
 
-                    //add stop
+                    //update sentence count = # stop tags
                     sentenceCount++;
                 }
             }
@@ -214,19 +193,27 @@ namespace hw2
             }
 
             var confusionOutput = @"../../Results/twt.train.confusion.txt";
+            double totalCorrect = 0;
+            double totalTags = 0;
             List<string> lines = new List<string>();
-            var header = "\t\t ";
+            var header = "\t ";
             foreach (var tag in completeTagSet)
             {
                 header += tag + "\t";
                 var line = tag + "\t";
                 foreach (var secondTag in completeTagSet)
                 {
+                    totalTags++;
                     if (confusionMatrix.ContainsKey(tag))
                     {
                         var expectedlist = confusionMatrix[tag];
                         if (expectedlist.ContainsKey(secondTag))
                         {
+                            if (tag == secondTag)
+                            {
+                                totalCorrect += confusionMatrix[tag][secondTag];
+                            }
+                            totalTags += confusionMatrix[tag][secondTag];
                             line += confusionMatrix[tag][secondTag] + "\t";
                         }
                         else
@@ -249,6 +236,8 @@ namespace hw2
                     writer.WriteLine(line);
                 }
             }
+
+            Console.WriteLine("Correct:"+totalCorrect+" Total:"+totalTags+" Percent:"+(totalCorrect/totalTags));
         }
 
         public static Dictionary<string, int> handleUnkown(string dataPath, string outputPath, int unk)
