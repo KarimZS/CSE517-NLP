@@ -21,18 +21,120 @@ namespace hw2
         public static Dictionary<string, int> wordSet;
         public static void Main(string[] args)
         {
-
-            Dictionary<String, Dictionary<String, double>> transitionCounts = new Dictionary<string, Dictionary<string, double>>();
-            Dictionary<String, Dictionary<String, double>> emissionCounts = new Dictionary<string, Dictionary<string, double>>();
-            HashSet<string> stateSet = new HashSet<string>();
-
-
             var trainDataPath = @"../../CSE517_HW_HMM_Data/twt.train.json";
-            var devDataPath = @"../../CSE517_HW_HMM_Data/twt.dev.json";
             var filteredTraininDataPath = @"../../CSE517_HW_HMM_Data/twt.train.filtered.json";
             wordSet = handleUnkown(trainDataPath, filteredTraininDataPath, unkCount);
 
             //read train data
+            Dictionary<string, Dictionary<string, double>> transitionCounts = new Dictionary<string, Dictionary<string, double>>();
+            Dictionary<string, Dictionary<string, double>> emissionCounts = new Dictionary<string, Dictionary<string, double>>();
+            var stateSet = new HashSet<string>();
+            train(trainDataPath, out stateSet, out emissionCounts, out transitionCounts);
+
+            //smooth emissions add -k 
+            var newEmission = addkSmooth(emissionCounts);
+            var newTransition = addkSmooth(transitionCounts);
+
+            //convert to probabilities
+            var probEmission = convertToProbability(newEmission);
+            var probTransition = convertToProbability(newTransition);
+
+            switch (args[0])
+            {
+                case "train":
+                    //start the vetrbi 
+                    string outputPath = @"../../Results/twt.train.results.json";
+                    forwardViterbi(trainDataPath, outputPath, probTransition, probEmission, stateSet);
+
+                    var confusionResult = createConfusionMatrix(trainDataPath, outputPath);
+
+                    var confusionOutput = @"../../Results/twt.train.confusion.txt";
+                    var finalResult = writeConfusionMatrix(confusionOutput, confusionResult.Item2, confusionResult.Item1);
+
+                    var totalCorrect = finalResult.Item1;
+                    var totalTags = finalResult.Item2;
+
+                    Console.WriteLine("Correct:" + totalCorrect + " Total:" + totalTags + " Percent:" + (totalCorrect / totalTags));
+
+                    break;
+                case "dev":
+                    var devDataPath = @"../../CSE517_HW_HMM_Data/twt.dev.json";
+                    //start the vetrbi 
+                    string devoutputPath = @"../../Results/twt.dev.results.json";
+                    forwardViterbi(devDataPath, devoutputPath, probTransition, probEmission, stateSet);
+
+                    var devconfusionResult = createConfusionMatrix(devDataPath, devoutputPath);
+
+                    var devconfusionOutput = @"../../Results/twt.dev.confusion.txt";
+                    var devfinalResult = writeConfusionMatrix(devconfusionOutput, devconfusionResult.Item2, devconfusionResult.Item1);
+
+                    var devtotalCorrect = devfinalResult.Item1;
+                    var devtotalTags = devfinalResult.Item2;
+
+                    Console.WriteLine("Correct:" + devtotalCorrect + " Total:" + devtotalTags + " Percent:" + (devtotalCorrect / devtotalTags));
+
+                    break;
+                case "test":
+                    var testDataPath = @"../../CSE517_HW_HMM_Data/twt.test.json";
+                    //start the vetrbi 
+                    string testoutputPath = @"../../Results/twt.test.results.json";
+                    forwardViterbi(testDataPath, testoutputPath, probTransition, probEmission, stateSet);
+
+                    var testconfusionResult = createConfusionMatrix(testDataPath, testoutputPath);
+
+                    var testconfusionOutput = @"../../Results/twt.test.confusion.txt";
+                    var testfinalResult = writeConfusionMatrix(testconfusionOutput, testconfusionResult.Item2, testconfusionResult.Item1);
+
+                    var testtotalCorrect = testfinalResult.Item1;
+                    var testtotalTags = testfinalResult.Item2;
+
+                    Console.WriteLine("Correct:" + testtotalCorrect + " Total:" + testtotalTags + " Percent:" + (testtotalCorrect / testtotalTags));
+
+                    break;
+                default:
+                    Console.WriteLine("run with paramter train, dev, or test, to determine which set to test on. All training is done with training set");
+                    break;
+            }
+        //    var trainDataPath = @"../../CSE517_HW_HMM_Data/twt.train.json";
+        //    var devDataPath = @"../../CSE517_HW_HMM_Data/twt.dev.json";
+        //    var filteredTraininDataPath = @"../../CSE517_HW_HMM_Data/twt.train.filtered.json";
+        //    wordSet = handleUnkown(trainDataPath, filteredTraininDataPath, unkCount);
+
+        //    //read train data
+        //    Dictionary<string, Dictionary<string, double>> transitionCounts = new Dictionary<string, Dictionary<string, double>>();
+        //    Dictionary<string, Dictionary<string, double>> emissionCounts = new Dictionary<string, Dictionary<string, double>>();
+        //    var stateSet = new HashSet<string>();
+        //    train(trainDataPath, out stateSet,out emissionCounts,out transitionCounts);
+
+        //    //smooth emissions add -k 
+        //    var newEmission = addkSmooth(emissionCounts);
+        //    var newTransition = addkSmooth(transitionCounts);
+
+        //    //convert to probabilities
+        //    var probEmission = convertToProbability(newEmission);
+        //    var probTransition = convertToProbability(newTransition);
+
+        //    //start the vetrbi 
+        //    string outputPath = @"../../Results/twt.train.results.json";
+        //    forwardViterbi(trainDataPath, outputPath, probTransition, probEmission, stateSet);
+
+
+        //    var confusionResult = createConfusionMatrix(trainDataPath, outputPath);
+
+        //    var confusionOutput = @"../../Results/twt.train.confusion.txt";
+        //    var finalResult = writeConfusionMatrix(confusionOutput, confusionResult.Item2, confusionResult.Item1);
+
+        //    var totalCorrect = finalResult.Item1;
+        //    var totalTags = finalResult.Item2;
+
+        //    Console.WriteLine("Correct:" + totalCorrect + " Total:" + totalTags + " Percent:" + (totalCorrect / totalTags));
+        }
+
+        public static void train(string trainDataPath,out HashSet<string> stateSet,out Dictionary<String, Dictionary<String, double>> emissionCounts,out Dictionary<String, Dictionary<String, double>> transitionCounts)
+        {
+            transitionCounts = new Dictionary<string, Dictionary<string, double>>();
+            emissionCounts = new Dictionary<string, Dictionary<string, double>>();
+            stateSet = new HashSet<string>();
 
             using (StreamReader reader = new StreamReader(trainDataPath))
             {
@@ -117,186 +219,8 @@ namespace hw2
                     sentenceCount++;
                 }
             }
-            Console.WriteLine(emissionCounts.Count);
-            Console.WriteLine(transitionCounts.Count);
 
             stateSet.Remove(startWord);
-
-            //smooth emissions add -k 
-            var newEmission = new Dictionary<String, Dictionary<String, double>>();
-            foreach (var tag in emissionCounts)
-            {
-                if (tag.Value.ContainsKey(unkWord))
-                {
-                    newEmission.Add(tag.Key, tag.Value);
-                    continue;
-                }
-                else
-                {
-                    var temp = new Dictionary<string, double>();
-                    foreach (var emission in tag.Value)
-                    {
-                        temp.Add(emission.Key, emission.Value + k);
-                    }
-                    temp.Add(unkWord, k);
-                    newEmission.Add(tag.Key, temp);
-                }
-
-            }
-
-            var newTransition = new Dictionary<String, Dictionary<String, double>>();
-            foreach (var tag in transitionCounts)
-            {
-                if (tag.Value.ContainsKey(unkWord))
-                {
-                    newTransition.Add(tag.Key, tag.Value);
-                    continue;
-                }
-                else
-                {
-                    var temp = new Dictionary<string, double>();
-                    foreach (var emission in tag.Value)
-                    {
-                        temp.Add(emission.Key, emission.Value + k);
-                    }
-                    temp.Add(unkWord, k);
-                    newTransition.Add(tag.Key, temp);
-                }
-
-            }
-
-            var probEmission = new Dictionary<String, Dictionary<String, double>>();
-            foreach (var tag in newEmission)
-            {
-                var newlist = new Dictionary<string, double>();
-
-                var sum = tag.Value.Sum(x => x.Value);
-                foreach (var innertag in tag.Value)
-                {
-                    double numerator = innertag.Value;
-                    double denominator = sum;
-                    var lognm = Math.Log(numerator);
-                    var logdm = Math.Log(denominator);
-                    double logdivision = lognm - logdm;
-                    newlist.Add(innertag.Key, logdivision);
-                }
-                probEmission.Add(tag.Key, newlist);
-
-            }
-
-            var probTransition = new Dictionary<String, Dictionary<String, double>>();
-            foreach (var tag in newTransition)
-            {
-                var newlist = new Dictionary<string, double>();
-
-                var sum = tag.Value.Sum(x => x.Value);
-                foreach (var innertag in tag.Value)
-                {
-                    double numerator = innertag.Value;
-                    double denominator = sum;
-                    var lognm = Math.Log(numerator);
-                    var logdm = Math.Log(denominator);
-                    double logdivision = lognm - logdm;
-                    newlist.Add(innertag.Key, logdivision);
-                }
-                probTransition.Add(tag.Key, newlist);
-
-            }
-
-            //start the vetrbi 
-            string outputPath = @"../../Results/twt.train.results.json";
-            forwardViterbi(trainDataPath, outputPath, probTransition, probEmission, stateSet);
-
-            var confusionMatrix = new Dictionary<string, Dictionary<string, int>>();
-            var completeTagSet = new HashSet<string>();
-
-            using (StreamReader expectedReader = new StreamReader(trainDataPath))
-            {
-                using (StreamReader predictedReader = new StreamReader(outputPath))
-                {
-                    while (!predictedReader.EndOfStream)
-                    {
-                        var expectedLine = expectedReader.ReadLine();
-                        var expectedObj = JsonConvert.DeserializeObject<List<List<string>>>(expectedLine);
-                        var predictedLine = predictedReader.ReadLine();
-                        var predictedObj = JsonConvert.DeserializeObject<List<List<string>>>(predictedLine);
-
-                        for (int i = 0; i < expectedObj.Count; i++)
-                        {
-                            var expectedTag = expectedObj[i][1];
-                            var predictedTag = predictedObj[i][1];
-
-                            completeTagSet.Add(expectedTag);
-                            completeTagSet.Add(predictedTag);
-
-                            if (confusionMatrix.ContainsKey(expectedTag))
-                            {
-                                var expectedlist = confusionMatrix[expectedTag];
-                                if (expectedlist.ContainsKey(predictedTag))
-                                {
-                                    expectedlist[predictedTag]++;
-                                }
-                                else
-                                {
-                                    expectedlist.Add(predictedTag, 1);
-                                }
-                            }
-                            else
-                            {
-                                var temp = new Dictionary<string, int>();
-                                temp.Add(predictedTag, 1);
-                                confusionMatrix.Add(expectedTag, temp);
-                            }
-                        }
-                    }
-                }
-            }
-
-            var confusionOutput = @"../../Results/twt.train.confusion.txt";
-            double totalCorrect = 0;
-            double totalTags = 0;
-            List<string> lines = new List<string>();
-            var header = "\t ";
-            foreach (var tag in completeTagSet)
-            {
-                header += tag + "\t";
-                var line = tag + "\t";
-                foreach (var secondTag in completeTagSet)
-                {
-                    if (confusionMatrix.ContainsKey(tag))
-                    {
-                        var expectedlist = confusionMatrix[tag];
-                        if (expectedlist.ContainsKey(secondTag))
-                        {
-                            if (tag == secondTag)
-                            {
-                                totalCorrect += confusionMatrix[tag][secondTag];
-                            }
-                            totalTags += confusionMatrix[tag][secondTag];
-                            line += confusionMatrix[tag][secondTag] + "\t";
-                        }
-                        else
-                        {
-                            line += 0 + "\t";
-                        }
-                    }
-                    else
-                    {
-                        line += 0 + "\t";
-                    }
-                }
-                lines.Add(line);
-            }
-            using (StreamWriter writer = new StreamWriter(confusionOutput))
-            {
-                writer.WriteLine(header);
-                foreach (var line in lines)
-                {
-                    writer.WriteLine(line);
-                }
-            }
-
-            Console.WriteLine("Correct:" + totalCorrect + " Total:" + totalTags + " Percent:" + (totalCorrect / totalTags));
         }
 
         public static Dictionary<string, int> handleUnkown(string dataPath, string outputPath, int unk)
@@ -351,6 +275,155 @@ namespace hw2
             return filteredWordSet;
         }
 
+        public static Tuple<double,double> writeConfusionMatrix(string confusionOutput, HashSet<string> completeTagSet, Dictionary<string, Dictionary<string, int>> confusionMatrix)
+        {
+            double totalCorrect = 0;
+            double totalTags = 0;
+            List<string> lines = new List<string>();
+            var header = "\t ";
+            foreach (var tag in completeTagSet)
+            {
+                header += tag + "\t";
+                var line = tag + "\t";
+                foreach (var secondTag in completeTagSet)
+                {
+                    if (confusionMatrix.ContainsKey(tag))
+                    {
+                        var expectedlist = confusionMatrix[tag];
+                        if (expectedlist.ContainsKey(secondTag))
+                        {
+                            if (tag == secondTag)
+                            {
+                                totalCorrect += confusionMatrix[tag][secondTag];
+                            }
+                            totalTags += confusionMatrix[tag][secondTag];
+                            line += confusionMatrix[tag][secondTag] + "\t";
+                        }
+                        else
+                        {
+                            line += 0 + "\t";
+                        }
+                    }
+                    else
+                    {
+                        line += 0 + "\t";
+                    }
+                }
+                lines.Add(line);
+            }
+            using (StreamWriter writer = new StreamWriter(confusionOutput))
+            {
+                writer.WriteLine(header);
+                foreach (var line in lines)
+                {
+                    writer.WriteLine(line);
+                }
+            }
+
+            return Tuple.Create(totalCorrect, totalTags);
+        }
+
+        public static Tuple<Dictionary<string, Dictionary<string, int>>, HashSet<string>> createConfusionMatrix(string truthFile, string resultFile)
+        {
+            var confusionMatrix = new Dictionary<string, Dictionary<string, int>>();
+            var completeTagSet = new HashSet<string>();
+
+            using (StreamReader expectedReader = new StreamReader(truthFile))
+            {
+                using (StreamReader predictedReader = new StreamReader(resultFile))
+                {
+                    while (!predictedReader.EndOfStream)
+                    {
+                        var expectedLine = expectedReader.ReadLine();
+                        var expectedObj = JsonConvert.DeserializeObject<List<List<string>>>(expectedLine);
+                        var predictedLine = predictedReader.ReadLine();
+                        var predictedObj = JsonConvert.DeserializeObject<List<List<string>>>(predictedLine);
+
+                        for (int i = 0; i < expectedObj.Count; i++)
+                        {
+                            var expectedTag = expectedObj[i][1];
+                            var predictedTag = predictedObj[i][1];
+
+                            completeTagSet.Add(expectedTag);
+                            completeTagSet.Add(predictedTag);
+
+                            if (confusionMatrix.ContainsKey(expectedTag))
+                            {
+                                var expectedlist = confusionMatrix[expectedTag];
+                                if (expectedlist.ContainsKey(predictedTag))
+                                {
+                                    expectedlist[predictedTag]++;
+                                }
+                                else
+                                {
+                                    expectedlist.Add(predictedTag, 1);
+                                }
+                            }
+                            else
+                            {
+                                var temp = new Dictionary<string, int>();
+                                temp.Add(predictedTag, 1);
+                                confusionMatrix.Add(expectedTag, temp);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return Tuple.Create(confusionMatrix,completeTagSet);
+        }
+
+        public static Dictionary<string,Dictionary<string,double>> addkSmooth(Dictionary<String, Dictionary<String, double>> dictionary)
+        {
+            var newCount = new Dictionary<String, Dictionary<String, double>>();
+            foreach (var tag in dictionary)
+            {
+                if (tag.Value.ContainsKey(unkWord))
+                {
+                    newCount.Add(tag.Key, tag.Value);
+                    continue;
+                }
+                else
+                {
+                    var temp = new Dictionary<string, double>();
+                    foreach (var emission in tag.Value)
+                    {
+                        temp.Add(emission.Key, emission.Value + k);
+                    }
+                    temp.Add(unkWord, k);
+                    newCount.Add(tag.Key, temp);
+                }
+
+            }
+
+            return newCount;
+        }
+
+        public static Dictionary<String, Dictionary<String, double>> convertToProbability(Dictionary<String, Dictionary<String, double>> dictionary)
+        {
+            
+            var prob = new Dictionary<String, Dictionary<String, double>>();
+            foreach (var tag in dictionary)
+            {
+                var newlist = new Dictionary<string, double>();
+
+                var sum = tag.Value.Sum(x => x.Value);
+                foreach (var innertag in tag.Value)
+                {
+                    double numerator = innertag.Value;
+                    double denominator = sum;
+                    var lognm = Math.Log(numerator);
+                    var logdm = Math.Log(denominator);
+                    double logdivision = lognm - logdm;
+                    newlist.Add(innertag.Key, logdivision);
+                }
+                prob.Add(tag.Key, newlist);
+
+            }
+
+            return prob;
+        }
+
         public static void forwardViterbi(string dataSet, string outputPath, Dictionary<String, Dictionary<String, double>> transitionCounts, Dictionary<String, Dictionary<String, double>> emissionCounts, HashSet<string> stateSet)
         {
             using (StreamReader reader = new StreamReader(dataSet))
@@ -361,6 +434,10 @@ namespace hw2
                     while (!reader.EndOfStream)// && linecount != 1000
                     {
                         linecount++;
+                        if(linecount % 1000 == 0 )
+                        {
+                            Console.WriteLine("Running Viterbi on line: " + linecount);
+                        }
                         var line = reader.ReadLine();
                         var dataObject = JsonConvert.DeserializeObject<List<List<string>>>(line);
                         var bestScore = new Dictionary<string, double>();
