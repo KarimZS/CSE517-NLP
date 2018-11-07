@@ -28,12 +28,13 @@ namespace hw2
 
 
             var trainDataPath = @"../../CSE517_HW_HMM_Data/twt.train.json";
+            var devDataPath = @"../../CSE517_HW_HMM_Data/twt.dev.json";
             var filteredTraininDataPath = @"../../CSE517_HW_HMM_Data/twt.train.filtered.json";
             wordSet = handleUnkown(trainDataPath, filteredTraininDataPath, unkCount);
 
             //read train data
 
-            using (StreamReader reader = new StreamReader(filteredTraininDataPath))
+            using (StreamReader reader = new StreamReader(trainDataPath))
             {
                 while (!reader.EndOfStream)
                 {
@@ -45,7 +46,7 @@ namespace hw2
 
                         var word = obj[i][0];
                         var tag = obj[i][1];
-                        var prevTag = obj[i -1][1];
+                        var prevTag = obj[i - 1][1];
 
                         stateSet.Add(tag);
 
@@ -92,7 +93,7 @@ namespace hw2
 
                     }
                     //handle last transition to stop in list
-                    
+
                     if (transitionCounts.ContainsKey(obj.Last()[1]))
                     {
                         var tagValues = transitionCounts[obj.Last()[1]];
@@ -164,9 +165,47 @@ namespace hw2
 
             }
 
+            var probEmission = new Dictionary<String, Dictionary<String, double>>();
+            foreach (var tag in newEmission)
+            {
+                var newlist = new Dictionary<string, double>();
+
+                var sum = tag.Value.Sum(x => x.Value);
+                foreach (var innertag in tag.Value)
+                {
+                    double numerator = innertag.Value;
+                    double denominator = sum;
+                    var lognm = Math.Log(numerator);
+                    var logdm = Math.Log(denominator);
+                    double logdivision = lognm - logdm;
+                    newlist.Add(innertag.Key, logdivision);
+                }
+                probEmission.Add(tag.Key, newlist);
+
+            }
+
+            var probTransition = new Dictionary<String, Dictionary<String, double>>();
+            foreach (var tag in newTransition)
+            {
+                var newlist = new Dictionary<string, double>();
+
+                var sum = tag.Value.Sum(x => x.Value);
+                foreach (var innertag in tag.Value)
+                {
+                    double numerator = innertag.Value;
+                    double denominator = sum;
+                    var lognm = Math.Log(numerator);
+                    var logdm = Math.Log(denominator);
+                    double logdivision = lognm - logdm;
+                    newlist.Add(innertag.Key, logdivision);
+                }
+                probTransition.Add(tag.Key, newlist);
+
+            }
+
             //start the vetrbi 
             string outputPath = @"../../Results/twt.train.results.json";
-            forwardViterbi(trainDataPath, outputPath, newTransition, newEmission, stateSet);
+            forwardViterbi(trainDataPath, outputPath, probTransition, probEmission, stateSet);
 
             var confusionMatrix = new Dictionary<string, Dictionary<string, int>>();
             var completeTagSet = new HashSet<string>();
@@ -175,14 +214,14 @@ namespace hw2
             {
                 using (StreamReader predictedReader = new StreamReader(outputPath))
                 {
-                    while (!expectedReader.EndOfStream)
+                    while (!predictedReader.EndOfStream)
                     {
                         var expectedLine = expectedReader.ReadLine();
                         var expectedObj = JsonConvert.DeserializeObject<List<List<string>>>(expectedLine);
                         var predictedLine = predictedReader.ReadLine();
                         var predictedObj = JsonConvert.DeserializeObject<List<List<string>>>(predictedLine);
 
-                        for (int i = 0; i < expectedObj.Count-1; i++)
+                        for (int i = 0; i < expectedObj.Count; i++)
                         {
                             var expectedTag = expectedObj[i][1];
                             var predictedTag = predictedObj[i][1];
@@ -224,7 +263,6 @@ namespace hw2
                 var line = tag + "\t";
                 foreach (var secondTag in completeTagSet)
                 {
-                    totalTags++;
                     if (confusionMatrix.ContainsKey(tag))
                     {
                         var expectedlist = confusionMatrix[tag];
@@ -258,7 +296,7 @@ namespace hw2
                 }
             }
 
-            Console.WriteLine("Correct:"+totalCorrect+" Total:"+totalTags+" Percent:"+(totalCorrect/totalTags));
+            Console.WriteLine("Correct:" + totalCorrect + " Total:" + totalTags + " Percent:" + (totalCorrect / totalTags));
         }
 
         public static Dictionary<string, int> handleUnkown(string dataPath, string outputPath, int unk)
@@ -319,98 +357,105 @@ namespace hw2
             {
                 using (StreamWriter writer = new StreamWriter(outputPath))
                 {
-                    while (!reader.EndOfStream)
+                    var linecount = 0;
+                    while (!reader.EndOfStream)// && linecount != 1000
                     {
-                    var line = reader.ReadLine();
-                    var dataObject = JsonConvert.DeserializeObject<List<List<string>>>(line);
-                    var bestScore = new Dictionary<string, double>();
-                    var bestTag = new Dictionary<string, string>();
+                        linecount++;
+                        var line = reader.ReadLine();
+                        var dataObject = JsonConvert.DeserializeObject<List<List<string>>>(line);
+                        var bestScore = new Dictionary<string, double>();
+                        var bestTag = new Dictionary<string, string>();
 
-                    //first word 
-                    int i = 0;
-                    foreach (var tag in stateSet)
-                    {
-                        var key = "" + i + " " + tag;
-                        var word = dataObject[i][0];
-                        double prob = logProbTransition(transitionCounts, startWord, tag) + logProbEmission(emissionCounts, tag, word);
-                        bestScore.Add(key, prob);
-                        bestTag.Add(key, startWord);
-                    }
-
-                    //middle
-                    for (i = 1; i < dataObject.Count; i++)
-                    {
-                            var word =dataObject[i][0];
-
-                            foreach (var tag in stateSet)
+                        //first word 
+                        int i = 0;
+                        foreach (var tag in stateSet)
                         {
-                            foreach (var prevTag in stateSet)
-                            {
-                                var bestPreviousKey = "" + (i - 1) + " " + prevTag;
-                                var bestPreviousValue = bestScore[bestPreviousKey];
-                                var key = "" + i + " " + tag;
-                                var logprob = bestPreviousValue + logProbTransition(transitionCounts, prevTag, tag) + logProbEmission(emissionCounts, tag, word);
+                            var key = "" + i + " " + tag;
+                            var word = emissionCounts[tag].ContainsKey(dataObject[i][0]) ? dataObject[i][0] : unkWord;
+                            var finTag = transitionCounts[startWord].ContainsKey(tag) ? tag : unkWord;
+                            double prob = transitionCounts[startWord][finTag] + emissionCounts[tag][word];
+                            bestScore.Add(key, prob);
+                            bestTag.Add(key, startWord);
+                        }
 
-                                if (bestScore.ContainsKey(key))
+                        //middle
+                        for (i = 1; i < dataObject.Count; i++)
+                        {
+                            foreach (var tag in stateSet)
+                            {
+                                var word = emissionCounts[tag].ContainsKey(dataObject[i][0]) ? dataObject[i][0] : unkWord;
+
+
+                                foreach (var prevTag in stateSet)
                                 {
-                                    var currentlogprob = bestScore[key];
-                                    if (logprob > currentlogprob)
+                                    var finTag = transitionCounts[prevTag].ContainsKey(tag) ? tag : unkWord;
+                                    var bestPreviousKey = "" + (i - 1) + " " + prevTag;
+                                    var bestPreviousValue = bestScore[bestPreviousKey];
+                                    var key = "" + i + " " + tag;
+                                    var logprob = bestPreviousValue + transitionCounts[prevTag][finTag] + emissionCounts[tag][word];
+
+                                    if (bestScore.ContainsKey(key))
                                     {
-                                        bestScore[key] = logprob;
-                                        bestTag[key] = bestPreviousKey;
+                                        var currentlogprob = bestScore[key];
+                                        if (logprob > currentlogprob)
+                                        {
+                                            bestScore[key] = logprob;
+                                            bestTag[key] = bestPreviousKey;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        bestScore.Add(key, logprob);
+                                        bestTag.Add(key, bestPreviousKey);
                                     }
                                 }
-                                else
+                            }
+                        }
+
+                        //last one
+
+                        foreach (var prevTag in stateSet)
+                        {
+                            var bestPreviousKey = "" + (i - 1) + " " + prevTag;
+                            var bestPreviousValue = bestScore[bestPreviousKey];
+                            var finTag = transitionCounts[prevTag].ContainsKey(stopWord) ? stopWord : unkWord;
+
+                            var key = "" + i + " " + stopWord;
+                            var logprob = bestPreviousValue + transitionCounts[prevTag][finTag];
+
+                            if (bestScore.ContainsKey(key))
+                            {
+                                var currentlogprob = bestScore[key];
+                                if (logprob > currentlogprob)
                                 {
-                                    bestScore.Add(key, logprob);
-                                    bestTag.Add(key, bestPreviousKey);
+                                    bestScore[key] = logprob;
+                                    bestTag[key] = bestPreviousKey;
                                 }
                             }
-                        }
-                    }
-
-                    //last one
-
-                    foreach (var prevTag in stateSet)
-                    {
-                        var bestPreviousKey = "" + (i - 1) + " " + prevTag;
-                        var bestPreviousValue = bestScore[bestPreviousKey];
-                        var key = "" + i + " " + stopWord;
-                        var logprob = bestPreviousValue + logProbTransition(transitionCounts, prevTag, stopWord) + logProbEmission(emissionCounts, stopWord, stopWord);
-
-                        if (bestScore.ContainsKey(key))
-                        {
-                            var currentlogprob = bestScore[key];
-                            if (logprob > currentlogprob)
+                            else
                             {
-                                bestScore[key] = logprob;
-                                bestTag[key] = bestPreviousKey;
+                                bestScore.Add(key, logprob);
+                                bestTag.Add(key, bestPreviousKey);
                             }
                         }
-                        else
+
+                        //backtrack and give tags
+
+                        List<string> tags = new List<string>();
+
+                        var currentTag = i + " " + stopWord;
+                        while (!currentTag.Equals(startWord))
                         {
-                            bestScore.Add(key, logprob);
-                            bestTag.Add(key, bestPreviousKey);
+                            tags.Insert(0, bestTag[currentTag]);
+                            currentTag = bestTag[currentTag];
                         }
-                    }
 
-                    //backtrack and give tags
+                        var outobj = new List<List<string>>();
 
-                    List<string> tags = new List<string>();
-
-                    var currentTag = i + " " + stopWord;
-                    while (!currentTag.Equals(startWord))
-                    {
-                        tags.Insert(0, bestTag[currentTag]);
-                        currentTag = bestTag[currentTag];
-                    }
-
-                    var outobj = new List<List<string>>();
-                  
-                        for (int m = 1; m < dataObject.Count; m++)
+                        for (int m = 1; m <= dataObject.Count; m++)
                         {
                             var tuple = new List<string>();
-                            tuple.Add(dataObject[m-1][0]);
+                            tuple.Add(dataObject[m - 1][0]);
                             tuple.Add(tags[m].Split(' ')[1]);
                             outobj.Add(tuple);
                         }
@@ -428,28 +473,28 @@ namespace hw2
             double numerator = dict[first].ContainsKey(second) ? dict[first][second] : dict[first][unkWord];
             double denominator = dict[first].Sum(x => x.Value);
 
-           
-          
-                double lognm = Math.Log(numerator);
-                double logdm = Math.Log(denominator);
-            double  logdivision = lognm - logdm;
+
+
+            double lognm = Math.Log(numerator);
+            double logdm = Math.Log(denominator);
+            double logdivision = lognm - logdm;
 
 
 
-            //unigram
-            double uniNumerator;
-            if (second == stopWord)
-            {
-                uniNumerator = sentenceCount;//times we have seen a stop
-            }
-            else
-            {
-                uniNumerator = dict[second].Sum(x => x.Value);
-            }
-            double uniDenominator = dict.Sum(x => x.Value.Sum(y => y.Value));
-            double uninmlog = Math.Log(uniNumerator);
-            double unidmlog = Math.Log(uniDenominator);
-            double uniDivision = uninmlog - unidmlog;
+            ////unigram
+            //double uniNumerator;
+            //if (second == stopWord)
+            //{
+            //    uniNumerator = sentenceCount;//times we have seen a stop
+            //}
+            //else
+            //{
+            //    uniNumerator = dict[second].Sum(x => x.Value);
+            //}
+            //double uniDenominator = dict.Sum(x => x.Value.Sum(y => y.Value));
+            //double uninmlog = Math.Log(uniNumerator);
+            //double unidmlog = Math.Log(uniDenominator);
+            //double uniDivision = uninmlog - unidmlog;
 
 
             return logdivision;//lambda2 * logdivision + lambda1 * uniDivision;
