@@ -14,7 +14,7 @@ namespace hw2
         public static int unkCount = 2;
         public static double lambda1 = 0.01;
         public static double lambda2 = 0.99;
-        public static double k = 1;
+        public static double k = .01;
         public static double sentenceCount = 0;
 
 
@@ -143,9 +143,30 @@ namespace hw2
 
             }
 
+            var newTransition = new Dictionary<String, Dictionary<String, double>>();
+            foreach (var tag in transitionCounts)
+            {
+                if (tag.Value.ContainsKey(unkWord))
+                {
+                    newTransition.Add(tag.Key, tag.Value);
+                    continue;
+                }
+                else
+                {
+                    var temp = new Dictionary<string, double>();
+                    foreach (var emission in tag.Value)
+                    {
+                        temp.Add(emission.Key, emission.Value + k);
+                    }
+                    temp.Add(unkWord, k);
+                    newTransition.Add(tag.Key, temp);
+                }
+
+            }
+
             //start the vetrbi 
             string outputPath = @"../../Results/twt.train.results.json";
-            forwardViterbi(trainDataPath, outputPath, transitionCounts, newEmission, stateSet);
+            forwardViterbi(trainDataPath, outputPath, newTransition, newEmission, stateSet);
 
             var confusionMatrix = new Dictionary<string, Dictionary<string, int>>();
             var completeTagSet = new HashSet<string>();
@@ -299,7 +320,7 @@ namespace hw2
                 using (StreamWriter writer = new StreamWriter(outputPath))
                 {
                     while (!reader.EndOfStream)
-                {
+                    {
                     var line = reader.ReadLine();
                     var dataObject = JsonConvert.DeserializeObject<List<List<string>>>(line);
                     var bestScore = new Dictionary<string, double>();
@@ -310,7 +331,7 @@ namespace hw2
                     foreach (var tag in stateSet)
                     {
                         var key = "" + i + " " + tag;
-                        var word = wordSet.ContainsKey(dataObject[i][0]) ? dataObject[i][0] : unkWord;
+                        var word = dataObject[i][0];
                         double prob = logProbTransition(transitionCounts, startWord, tag) + logProbEmission(emissionCounts, tag, word);
                         bestScore.Add(key, prob);
                         bestTag.Add(key, startWord);
@@ -319,8 +340,9 @@ namespace hw2
                     //middle
                     for (i = 1; i < dataObject.Count; i++)
                     {
-                        var word = wordSet.ContainsKey(dataObject[i][0]) ? dataObject[i][0] : unkWord;
-                        foreach (var tag in stateSet)
+                            var word =dataObject[i][0];
+
+                            foreach (var tag in stateSet)
                         {
                             foreach (var prevTag in stateSet)
                             {
@@ -403,19 +425,15 @@ namespace hw2
         public static double logProbTransition(Dictionary<String, Dictionary<String, double>> dict, string first, string second)
         {
             //bigram
-            double numerator = dict[first].ContainsKey(second) ? dict[first][second] : 0;
+            double numerator = dict[first].ContainsKey(second) ? dict[first][second] : dict[first][unkWord];
             double denominator = dict[first].Sum(x => x.Value);
-            double logdivision;
-            if (numerator == 0)
-            {
-                logdivision = double.MinValue;
-            }
-            else
-            {
+
+           
+          
                 double lognm = Math.Log(numerator);
                 double logdm = Math.Log(denominator);
-                logdivision = lognm - logdm;
-            }
+            double  logdivision = lognm - logdm;
+
 
 
             //unigram
@@ -434,7 +452,7 @@ namespace hw2
             double uniDivision = uninmlog - unidmlog;
 
 
-            return lambda2 * logdivision + lambda1 * uniDivision;
+            return logdivision;//lambda2 * logdivision + lambda1 * uniDivision;
         }
 
         public static double logProbEmission(Dictionary<String, Dictionary<String, double>> dict, string first, string second)
