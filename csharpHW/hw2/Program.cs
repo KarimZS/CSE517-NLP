@@ -11,10 +11,9 @@ namespace hw2
         public static string unkWord = "*UNK*";
         public static string startWord = "*START*";
         public static string stopWord = "*STOP*";
+
         public static int unkCount = 2;
-        public static double lambda1 = 0.01;
-        public static double lambda2 = 0.99;
-        public static double k = .01;
+        public static double k = .001;
         public static double sentenceCount = 0;
 
 
@@ -24,6 +23,7 @@ namespace hw2
             var trainDataPath = @"../../CSE517_HW_HMM_Data/twt.train.json";
             var filteredTraininDataPath = @"../../CSE517_HW_HMM_Data/twt.train.filtered.json";
             wordSet = handleUnkown(trainDataPath, filteredTraininDataPath, unkCount);
+            handleUnkown(trainDataPath, filteredTraininDataPath, unkCount);
 
             switch (args[0])
             {
@@ -46,7 +46,7 @@ namespace hw2
                         case "train":
                             //start the vetrbi 
                             string outputPath = @"../../Results/twt.train.results.json";
-                            forwardViterbi(trainDataPath, outputPath, probTransition, probEmission, stateSet);
+                            Viterbi(filteredTraininDataPath, outputPath, probTransition, probEmission, stateSet);
 
                             var confusionResult = createConfusionMatrix(trainDataPath, outputPath);
 
@@ -63,7 +63,7 @@ namespace hw2
                             var devDataPath = @"../../CSE517_HW_HMM_Data/twt.dev.json";
                             //start the vetrbi 
                             string devoutputPath = @"../../Results/twt.dev.results.json";
-                            forwardViterbi(devDataPath, devoutputPath, probTransition, probEmission, stateSet);
+                            Viterbi(devDataPath, devoutputPath, probTransition, probEmission, stateSet);
 
                             var devconfusionResult = createConfusionMatrix(devDataPath, devoutputPath);
 
@@ -80,7 +80,7 @@ namespace hw2
                             var testDataPath = @"../../CSE517_HW_HMM_Data/twt.test.json";
                             //start the vetrbi 
                             string testoutputPath = @"../../Results/twt.test.results.json";
-                            forwardViterbi(testDataPath, testoutputPath, probTransition, probEmission, stateSet);
+                            Viterbi(testDataPath, testoutputPath, probTransition, probEmission, stateSet);
 
                             var testconfusionResult = createConfusionMatrix(testDataPath, testoutputPath);
 
@@ -113,8 +113,65 @@ namespace hw2
                     var triprobEmission = convertToProbability(trinewEmission);
                     var triprobTransition = convertToProbability(trinewTransition);
 
+                    switch (args[1])
+                    {
+                        case "train":
+                            //start the vetrbi 
+                            string outputPath = @"../../Results/twt.train.tri.results.json";
+                            triViterbi(filteredTraininDataPath, outputPath, triprobTransition, triprobEmission, tristateSet);
+
+                            var confusionResult = createConfusionMatrix(trainDataPath, outputPath);
+
+                            var confusionOutput = @"../../Results/twt.train.tri.confusion.txt";
+                            var finalResult = writeConfusionMatrix(confusionOutput, confusionResult.Item2, confusionResult.Item1);
+
+                            var totalCorrect = finalResult.Item1;
+                            var totalTags = finalResult.Item2;
+
+                            Console.WriteLine("Correct:" + totalCorrect + " Total:" + totalTags + " Percent:" + (totalCorrect / totalTags));
+
+                            break;
+                        case "dev":
+                            var devDataPath = @"../../CSE517_HW_HMM_Data/twt.dev.json";
+                            //start the vetrbi 
+                            string devoutputPath = @"../../Results/twt.dev.tri.results.json";
+                            triViterbi(devDataPath, devoutputPath, triprobTransition, triprobEmission, tristateSet);
+
+                            var devconfusionResult = createConfusionMatrix(devDataPath, devoutputPath);
+
+                            var devconfusionOutput = @"../../Results/twt.dev.tri.confusion.txt";
+                            var devfinalResult = writeConfusionMatrix(devconfusionOutput, devconfusionResult.Item2, devconfusionResult.Item1);
+
+                            var devtotalCorrect = devfinalResult.Item1;
+                            var devtotalTags = devfinalResult.Item2;
+
+                            Console.WriteLine("Correct:" + devtotalCorrect + " Total:" + devtotalTags + " Percent:" + (devtotalCorrect / devtotalTags));
+
+                            break;
+                        case "test":
+                            var testDataPath = @"../../CSE517_HW_HMM_Data/twt.test.json";
+                            //start the vetrbi 
+                            string testoutputPath = @"../../Results/twt.test.tri.results.json";
+                            triViterbi(testDataPath, testoutputPath, triprobTransition, triprobEmission, tristateSet);
+
+                            var testconfusionResult = createConfusionMatrix(testDataPath, testoutputPath);
+
+                            var testconfusionOutput = @"../../Results/twt.test.tri.confusion.txt";
+                            var testfinalResult = writeConfusionMatrix(testconfusionOutput, testconfusionResult.Item2, testconfusionResult.Item1);
+
+                            var testtotalCorrect = testfinalResult.Item1;
+                            var testtotalTags = testfinalResult.Item2;
+
+                            Console.WriteLine("Correct:" + testtotalCorrect + " Total:" + testtotalTags + " Percent:" + (testtotalCorrect / testtotalTags));
+
+                            break;
+                        default:
+                            Console.WriteLine("Run with paramter bigram or trigram then specify train, dev, or test, to determine which set to test on (Ex: trigram dev to get results for trigram hmm results on dev set). All training is done with training set");
+                            break;
+                    }
                     break;
                 default:
+                    Console.WriteLine("Run with paramter bigram or trigram then specify train, dev, or test, to determine which set to test on (Ex: trigram dev to get results for trigram hmm results on dev set). All training is done with training set");
                     break;
             }
 
@@ -189,7 +246,7 @@ namespace hw2
 
                     }
                     //handle last transition to stop in list
-                    var lastBigramKey = obj[obj.Count-2][1] + " " + obj.Last()[1];
+                    var lastBigramKey = obj[obj.Count - 2][1] + " " + obj.Last()[1];
                     if (tritransitionCounts.ContainsKey(lastBigramKey))
                     {
                         var tagValues = tritransitionCounts[lastBigramKey];
@@ -367,11 +424,11 @@ namespace hw2
             double totalCorrect = 0;
             double totalTags = 0;
             List<string> lines = new List<string>();
-            var header = "\t ";
+            var header = "     ";
             foreach (var tag in completeTagSet)
             {
-                header += tag + "\t";
-                var line = tag + "\t";
+                header += tag + "    ";
+                var line = tag + "    ";
                 foreach (var secondTag in completeTagSet)
                 {
                     if (confusionMatrix.ContainsKey(tag))
@@ -384,16 +441,22 @@ namespace hw2
                                 totalCorrect += confusionMatrix[tag][secondTag];
                             }
                             totalTags += confusionMatrix[tag][secondTag];
-                            line += confusionMatrix[tag][secondTag] + "\t";
+                            var value = confusionMatrix[tag][secondTag] + "";
+                            var count = 5 - value.Length;
+                            for (int l = 0; l < count; l++)
+                            {
+                                value += " ";
+                            }
+                            line += value;
                         }
                         else
                         {
-                            line += 0 + "\t";
+                            line += 0 + "    ";
                         }
                     }
                     else
                     {
-                        line += 0 + "\t";
+                        line += 0 + "    ";
                     }
                 }
                 lines.Add(line);
@@ -511,7 +574,7 @@ namespace hw2
             return prob;
         }
 
-        public static void forwardViterbi(string dataSet, string outputPath, Dictionary<String, Dictionary<String, double>> transitionCounts, Dictionary<String, Dictionary<String, double>> emissionCounts, HashSet<string> stateSet)
+        public static void Viterbi(string dataSet, string outputPath, Dictionary<String, Dictionary<String, double>> transitionCounts, Dictionary<String, Dictionary<String, double>> emissionCounts, HashSet<string> stateSet)
         {
             using (StreamReader reader = new StreamReader(dataSet))
             {
@@ -631,61 +694,158 @@ namespace hw2
             }
         }
 
-        //public static double logProbTransition(Dictionary<String, Dictionary<String, double>> dict, string first, string second)
-        //{
-        //    //bigram
-        //    double numerator = dict[first].ContainsKey(second) ? dict[first][second] : dict[first][unkWord];
-        //    double denominator = dict[first].Sum(x => x.Value);
+        public static void triViterbi(string dataSet, string outputPath, Dictionary<String, Dictionary<String, double>> transitionCounts, Dictionary<String, Dictionary<String, double>> emissionCounts, HashSet<string> stateSet)
+        {
+            using (StreamReader reader = new StreamReader(dataSet))
+            {
+                using (StreamWriter writer = new StreamWriter(outputPath))
+                {
+                    var linecount = 0;
+                    while (!reader.EndOfStream)// && linecount != 1000
+                    {
+                        linecount++;
+                        if (linecount % 1000 == 0)
+                        {
+                            Console.WriteLine("Running trigram Viterbi on line: " + linecount);
+                        }
+                        var line = reader.ReadLine();
+                        var dataObject = JsonConvert.DeserializeObject<List<List<string>>>(line);
+                        var bestScore = new Dictionary<string, double>();
+                        var bestTag = new Dictionary<string, string>();
+
+
+                        //start start first tag
+                        int i = 0;
+                        foreach (var tag in stateSet)
+                        {
+                            var key = "" + i + " " + startWord + " " + tag;
+                            var word = emissionCounts[tag].ContainsKey(dataObject[i][0]) ? dataObject[i][0] : unkWord;
+                            var prevKey = startWord + " " + startWord;
+                            var finTag = transitionCounts[prevKey].ContainsKey(tag) ? tag : unkWord;
+                            double prob = transitionCounts[prevKey][finTag] + emissionCounts[tag][word];
+                            bestScore.Add(key, prob);
+                            bestTag.Add(key, startWord);
+
+                        }
+
+                        //start first second
+                        i = 1;
+                        foreach (var tag in stateSet)
+                        {
+                            foreach (var prevTag in stateSet)
+                            {
+
+                                var key = "" + i + " " + prevTag + " " + tag;
+                                var word = emissionCounts[tag].ContainsKey(dataObject[i][0]) ? dataObject[i][0] : unkWord;
+                                var prevKey = startWord + " " + prevTag;
+                                var finTag = transitionCounts[prevKey].ContainsKey(tag) ? tag : unkWord;
+                                double prob = transitionCounts[prevKey][finTag] + emissionCounts[tag][word];
+                                bestScore.Add(key, prob);
+                                bestTag.Add(key, startWord);
+                            }
+                        }
 
 
 
-        //    double lognm = Math.Log(numerator);
-        //    double logdm = Math.Log(denominator);
-        //    double logdivision = lognm - logdm;
+                        //first word 
+                        // int i = 0;
+                        foreach (var tag in stateSet)
+                        {
+                            var key = "" + i + " " + tag;
+                            var word = emissionCounts[tag].ContainsKey(dataObject[i][0]) ? dataObject[i][0] : unkWord;
+                            var finTag = transitionCounts[startWord].ContainsKey(tag) ? tag : unkWord;
+                            double prob = transitionCounts[startWord][finTag] + emissionCounts[tag][word];
+                            bestScore.Add(key, prob);
+                            bestTag.Add(key, startWord);
+                        }
+
+                        //middle
+                        for (i = 1; i < dataObject.Count; i++)
+                        {
+                            foreach (var tag in stateSet)
+                            {
+                                var word = emissionCounts[tag].ContainsKey(dataObject[i][0]) ? dataObject[i][0] : unkWord;
 
 
+                                foreach (var prevTag in stateSet)
+                                {
+                                    var finTag = transitionCounts[prevTag].ContainsKey(tag) ? tag : unkWord;
+                                    var bestPreviousKey = "" + (i - 1) + " " + prevTag;
+                                    var bestPreviousValue = bestScore[bestPreviousKey];
+                                    var key = "" + i + " " + tag;
+                                    var logprob = bestPreviousValue + transitionCounts[prevTag][finTag] + emissionCounts[tag][word];
 
-        //    ////unigram
-        //    //double uniNumerator;
-        //    //if (second == stopWord)
-        //    //{
-        //    //    uniNumerator = sentenceCount;//times we have seen a stop
-        //    //}
-        //    //else
-        //    //{
-        //    //    uniNumerator = dict[second].Sum(x => x.Value);
-        //    //}
-        //    //double uniDenominator = dict.Sum(x => x.Value.Sum(y => y.Value));
-        //    //double uninmlog = Math.Log(uniNumerator);
-        //    //double unidmlog = Math.Log(uniDenominator);
-        //    //double uniDivision = uninmlog - unidmlog;
+                                    if (bestScore.ContainsKey(key))
+                                    {
+                                        var currentlogprob = bestScore[key];
+                                        if (logprob > currentlogprob)
+                                        {
+                                            bestScore[key] = logprob;
+                                            bestTag[key] = bestPreviousKey;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        bestScore.Add(key, logprob);
+                                        bestTag.Add(key, bestPreviousKey);
+                                    }
+                                }
+                            }
+                        }
 
+                        //last one
 
-        //    return logdivision;//lambda2 * logdivision + lambda1 * uniDivision;
-        //}
+                        foreach (var prevTag in stateSet)
+                        {
+                            var bestPreviousKey = "" + (i - 1) + " " + prevTag;
+                            var bestPreviousValue = bestScore[bestPreviousKey];
+                            var finTag = transitionCounts[prevTag].ContainsKey(stopWord) ? stopWord : unkWord;
 
-        //public static double logProbEmission(Dictionary<String, Dictionary<String, double>> dict, string first, string second)
-        //{
-        //    if (first == stopWord && second == stopWord)
-        //    {
-        //        return 0;
-        //    }
-        //    //bigram
-        //    double numerator = dict[first].ContainsKey(second) ? dict[first][second] : dict[first][unkWord];
-        //    double denominator = dict[first].Sum(x => x.Value);
-        //    var lognm = Math.Log(numerator);
-        //    var logdm = Math.Log(denominator);
-        //    double logdivision = lognm - logdm;
+                            var key = "" + i + " " + stopWord;
+                            var logprob = bestPreviousValue + transitionCounts[prevTag][finTag];
 
-        //    ////signle
-        //    //var singleNum = wordSet.ContainsKey(second) ? wordSet[second]: wordSet[unkWord];
-        //    //var sum = wordSet.Sum(x => x.Value);
-        //    //var singleDivision = singleNum / sum;
-        //    //var singleLog = division == 0 ? 0 : Math.Log(division);
+                            if (bestScore.ContainsKey(key))
+                            {
+                                var currentlogprob = bestScore[key];
+                                if (logprob > currentlogprob)
+                                {
+                                    bestScore[key] = logprob;
+                                    bestTag[key] = bestPreviousKey;
+                                }
+                            }
+                            else
+                            {
+                                bestScore.Add(key, logprob);
+                                bestTag.Add(key, bestPreviousKey);
+                            }
+                        }
 
-        //    //return lambda2 * log + lambda1 * singleLog;
+                        //backtrack and give tags
 
-        //    return logdivision;
-        //}
+                        List<string> tags = new List<string>();
+
+                        var currentTag = i + " " + stopWord;
+                        while (!currentTag.Equals(startWord))
+                        {
+                            tags.Insert(0, bestTag[currentTag]);
+                            currentTag = bestTag[currentTag];
+                        }
+
+                        var outobj = new List<List<string>>();
+
+                        for (int m = 1; m <= dataObject.Count; m++)
+                        {
+                            var tuple = new List<string>();
+                            tuple.Add(dataObject[m - 1][0]);
+                            tuple.Add(tags[m].Split(' ')[1]);
+                            outobj.Add(tuple);
+                        }
+                        var json = JsonConvert.SerializeObject(outobj);
+                        writer.WriteLine(json);
+                    }
+
+                }
+            }
+        }
     }
 }
