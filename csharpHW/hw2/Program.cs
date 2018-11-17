@@ -11,126 +11,303 @@ namespace hw2
         public static string unkWord = "*UNK*";
         public static string startWord = "*START*";
         public static string stopWord = "*STOP*";
+
         public static int unkCount = 2;
-        public static double lambda1 = 0.01;
-        public static double lambda2 = 0.99;
-        public static double k = .01;
+        public static double k = .001;
         public static double sentenceCount = 0;
 
 
         public static Dictionary<string, int> wordSet;
         public static void Main(string[] args)
         {
+            if(args.Length<2)
+            {
+                Console.WriteLine("Run with paramter bigram or trigram then specify train, dev, or test, to determine which set to test on (Ex: trigram dev to get results for trigram hmm results on dev set). All training is done with training set");
+                return;
+            }
+
             var trainDataPath = @"../../CSE517_HW_HMM_Data/twt.train.json";
             var filteredTraininDataPath = @"../../CSE517_HW_HMM_Data/twt.train.filtered.json";
             wordSet = handleUnkown(trainDataPath, filteredTraininDataPath, unkCount);
-
-            //read train data
-            Dictionary<string, Dictionary<string, double>> transitionCounts = new Dictionary<string, Dictionary<string, double>>();
-            Dictionary<string, Dictionary<string, double>> emissionCounts = new Dictionary<string, Dictionary<string, double>>();
-            var stateSet = new HashSet<string>();
-            train(trainDataPath, out stateSet, out emissionCounts, out transitionCounts);
-
-            //smooth emissions add -k 
-            var newEmission = addkSmooth(emissionCounts);
-            var newTransition = addkSmooth(transitionCounts);
-
-            //convert to probabilities
-            var probEmission = convertToProbability(newEmission);
-            var probTransition = convertToProbability(newTransition);
-
+            handleUnkown(trainDataPath, filteredTraininDataPath, unkCount);
+            
             switch (args[0])
             {
-                case "train":
-                    //start the vetrbi 
-                    string outputPath = @"../../Results/twt.train.results.json";
-                    forwardViterbi(trainDataPath, outputPath, probTransition, probEmission, stateSet);
+                case "bigram":
 
-                    var confusionResult = createConfusionMatrix(trainDataPath, outputPath);
+                    //read train data
 
-                    var confusionOutput = @"../../Results/twt.train.confusion.txt";
-                    var finalResult = writeConfusionMatrix(confusionOutput, confusionResult.Item2, confusionResult.Item1);
+                    train(trainDataPath, out HashSet<string> stateSet, out Dictionary<string, Dictionary<string, double>> emissionCounts, out Dictionary<string, Dictionary<string, double>> transitionCounts);
 
-                    var totalCorrect = finalResult.Item1;
-                    var totalTags = finalResult.Item2;
+                    //smooth emissions add -k 
+                    var newEmission = addkSmooth(emissionCounts);
+                    var newTransition = addkSmooth(transitionCounts);
 
-                    Console.WriteLine("Correct:" + totalCorrect + " Total:" + totalTags + " Percent:" + (totalCorrect / totalTags));
+                    //convert to probabilities
+                    var probEmission = convertToProbability(newEmission);
+                    var probTransition = convertToProbability(newTransition);
+
+                    switch (args[1])
+                    {
+                        case "train":
+                            //start the vetrbi 
+                            string outputPath = @"../../Results/twt.train.results.json";
+                            Viterbi(trainDataPath, outputPath, probTransition, probEmission, stateSet);
+
+                            var confusionResult = createConfusionMatrix(trainDataPath, outputPath);
+
+                            var confusionOutput = @"../../Results/twt.train.confusion.txt";
+                            var finalResult = writeConfusionMatrix(confusionOutput, confusionResult.Item2, confusionResult.Item1);
+
+                            var totalCorrect = finalResult.Item1;
+                            var totalTags = finalResult.Item2;
+
+                            Console.WriteLine("Correct:" + totalCorrect + " Total:" + totalTags + " Percent:" + (totalCorrect / totalTags));
+
+                            break;
+                        case "dev":
+                            var devDataPath = @"../../CSE517_HW_HMM_Data/twt.dev.json";
+                            //start the vetrbi 
+                            string devoutputPath = @"../../Results/twt.dev.results.json";
+                            Viterbi(devDataPath, devoutputPath, probTransition, probEmission, stateSet);
+
+                            var devconfusionResult = createConfusionMatrix(devDataPath, devoutputPath);
+
+                            var devconfusionOutput = @"../../Results/twt.dev.confusion.txt";
+                            var devfinalResult = writeConfusionMatrix(devconfusionOutput, devconfusionResult.Item2, devconfusionResult.Item1);
+
+                            var devtotalCorrect = devfinalResult.Item1;
+                            var devtotalTags = devfinalResult.Item2;
+
+                            Console.WriteLine("Correct:" + devtotalCorrect + " Total:" + devtotalTags + " Percent:" + (devtotalCorrect / devtotalTags));
+
+                            break;
+                        case "test":
+                            var testDataPath = @"../../CSE517_HW_HMM_Data/twt.test.json";
+                            //start the vetrbi 
+                            string testoutputPath = @"../../Results/twt.test.results.json";
+                            Viterbi(testDataPath, testoutputPath, probTransition, probEmission, stateSet);
+
+                            var testconfusionResult = createConfusionMatrix(testDataPath, testoutputPath);
+
+                            var testconfusionOutput = @"../../Results/twt.test.confusion.txt";
+                            var testfinalResult = writeConfusionMatrix(testconfusionOutput, testconfusionResult.Item2, testconfusionResult.Item1);
+
+                            var testtotalCorrect = testfinalResult.Item1;
+                            var testtotalTags = testfinalResult.Item2;
+
+                            Console.WriteLine("Correct:" + testtotalCorrect + " Total:" + testtotalTags + " Percent:" + (testtotalCorrect / testtotalTags));
+
+                            break;
+                        default:
+                            Console.WriteLine("run with paramter train, dev, or test, to determine which set to test on. All training is done with training set");
+                            break;
+                    }
 
                     break;
-                case "dev":
-                    var devDataPath = @"../../CSE517_HW_HMM_Data/twt.dev.json";
-                    //start the vetrbi 
-                    string devoutputPath = @"../../Results/twt.dev.results.json";
-                    forwardViterbi(devDataPath, devoutputPath, probTransition, probEmission, stateSet);
+                case "trigram":
 
-                    var devconfusionResult = createConfusionMatrix(devDataPath, devoutputPath);
+                    //read train data
 
-                    var devconfusionOutput = @"../../Results/twt.dev.confusion.txt";
-                    var devfinalResult = writeConfusionMatrix(devconfusionOutput, devconfusionResult.Item2, devconfusionResult.Item1);
+                    tritrain(trainDataPath, out HashSet<string> tristateSet, out Dictionary<string, Dictionary<string, double>> triemissionCounts, out Dictionary<string, Dictionary<string, Dictionary<string, double>>> tritransitionCounts);
 
-                    var devtotalCorrect = devfinalResult.Item1;
-                    var devtotalTags = devfinalResult.Item2;
+                    //smooth emissions add -k 
+                    var trinewEmission = addkSmooth(triemissionCounts);
+                    var trinewTransition = triaddkSmooth(tritransitionCounts);
 
-                    Console.WriteLine("Correct:" + devtotalCorrect + " Total:" + devtotalTags + " Percent:" + (devtotalCorrect / devtotalTags));
+                    //convert to probabilities
+                    var triprobEmission = convertToProbability(trinewEmission);
+                    var triprobTransition = triconvertToProbability(trinewTransition);
 
-                    break;
-                case "test":
-                    var testDataPath = @"../../CSE517_HW_HMM_Data/twt.test.json";
-                    //start the vetrbi 
-                    string testoutputPath = @"../../Results/twt.test.results.json";
-                    forwardViterbi(testDataPath, testoutputPath, probTransition, probEmission, stateSet);
+                    switch (args[1])
+                    {
+                        case "train":
+                            //start the vetrbi 
+                            string outputPath = @"../../Results/twt.train.tri.results.json";
+                            triViterbi(trainDataPath, outputPath, triprobTransition, triprobEmission, tristateSet);
 
-                    var testconfusionResult = createConfusionMatrix(testDataPath, testoutputPath);
+                            var confusionResult = createConfusionMatrix(trainDataPath, outputPath);
 
-                    var testconfusionOutput = @"../../Results/twt.test.confusion.txt";
-                    var testfinalResult = writeConfusionMatrix(testconfusionOutput, testconfusionResult.Item2, testconfusionResult.Item1);
+                            var confusionOutput = @"../../Results/twt.train.tri.confusion.txt";
+                            var finalResult = writeConfusionMatrix(confusionOutput, confusionResult.Item2, confusionResult.Item1);
 
-                    var testtotalCorrect = testfinalResult.Item1;
-                    var testtotalTags = testfinalResult.Item2;
+                            var totalCorrect = finalResult.Item1;
+                            var totalTags = finalResult.Item2;
 
-                    Console.WriteLine("Correct:" + testtotalCorrect + " Total:" + testtotalTags + " Percent:" + (testtotalCorrect / testtotalTags));
+                            Console.WriteLine("Correct:" + totalCorrect + " Total:" + totalTags + " Percent:" + (totalCorrect / totalTags));
 
+                            break;
+                        case "dev":
+                            var devDataPath = @"../../CSE517_HW_HMM_Data/twt.dev.json";
+                            //start the vetrbi 
+                            string devoutputPath = @"../../Results/twt.dev.tri.results.json";
+                            triViterbi(devDataPath, devoutputPath, triprobTransition, triprobEmission, tristateSet);
+
+                            var devconfusionResult = createConfusionMatrix(devDataPath, devoutputPath);
+
+                            var devconfusionOutput = @"../../Results/twt.dev.tri.confusion.txt";
+                            var devfinalResult = writeConfusionMatrix(devconfusionOutput, devconfusionResult.Item2, devconfusionResult.Item1);
+
+                            var devtotalCorrect = devfinalResult.Item1;
+                            var devtotalTags = devfinalResult.Item2;
+
+                            Console.WriteLine("Correct:" + devtotalCorrect + " Total:" + devtotalTags + " Percent:" + (devtotalCorrect / devtotalTags));
+
+                            break;
+                        case "test":
+                            var testDataPath = @"../../CSE517_HW_HMM_Data/twt.test.json";
+                            //start the vetrbi 
+                            string testoutputPath = @"../../Results/twt.test.tri.results.json";
+                            triViterbi(testDataPath, testoutputPath, triprobTransition, triprobEmission, tristateSet);
+
+                            var testconfusionResult = createConfusionMatrix(testDataPath, testoutputPath);
+
+                            var testconfusionOutput = @"../../Results/twt.test.tri.confusion.txt";
+                            var testfinalResult = writeConfusionMatrix(testconfusionOutput, testconfusionResult.Item2, testconfusionResult.Item1);
+
+                            var testtotalCorrect = testfinalResult.Item1;
+                            var testtotalTags = testfinalResult.Item2;
+
+                            Console.WriteLine("Correct:" + testtotalCorrect + " Total:" + testtotalTags + " Percent:" + (testtotalCorrect / testtotalTags));
+
+                            break;
+                        default:
+                            Console.WriteLine("Run with paramter bigram or trigram then specify train, dev, or test, to determine which set to test on (Ex: trigram dev to get results for trigram hmm results on dev set). All training is done with training set");
+                            break;
+                    }
                     break;
                 default:
-                    Console.WriteLine("run with paramter train, dev, or test, to determine which set to test on. All training is done with training set");
+                    Console.WriteLine("Run with paramter bigram or trigram then specify train, dev, or test, to determine which set to test on (Ex: trigram dev to get results for trigram hmm results on dev set). All training is done with training set");
                     break;
             }
-        //    var trainDataPath = @"../../CSE517_HW_HMM_Data/twt.train.json";
-        //    var devDataPath = @"../../CSE517_HW_HMM_Data/twt.dev.json";
-        //    var filteredTraininDataPath = @"../../CSE517_HW_HMM_Data/twt.train.filtered.json";
-        //    wordSet = handleUnkown(trainDataPath, filteredTraininDataPath, unkCount);
-
-        //    //read train data
-        //    Dictionary<string, Dictionary<string, double>> transitionCounts = new Dictionary<string, Dictionary<string, double>>();
-        //    Dictionary<string, Dictionary<string, double>> emissionCounts = new Dictionary<string, Dictionary<string, double>>();
-        //    var stateSet = new HashSet<string>();
-        //    train(trainDataPath, out stateSet,out emissionCounts,out transitionCounts);
-
-        //    //smooth emissions add -k 
-        //    var newEmission = addkSmooth(emissionCounts);
-        //    var newTransition = addkSmooth(transitionCounts);
-
-        //    //convert to probabilities
-        //    var probEmission = convertToProbability(newEmission);
-        //    var probTransition = convertToProbability(newTransition);
-
-        //    //start the vetrbi 
-        //    string outputPath = @"../../Results/twt.train.results.json";
-        //    forwardViterbi(trainDataPath, outputPath, probTransition, probEmission, stateSet);
 
 
-        //    var confusionResult = createConfusionMatrix(trainDataPath, outputPath);
-
-        //    var confusionOutput = @"../../Results/twt.train.confusion.txt";
-        //    var finalResult = writeConfusionMatrix(confusionOutput, confusionResult.Item2, confusionResult.Item1);
-
-        //    var totalCorrect = finalResult.Item1;
-        //    var totalTags = finalResult.Item2;
-
-        //    Console.WriteLine("Correct:" + totalCorrect + " Total:" + totalTags + " Percent:" + (totalCorrect / totalTags));
         }
 
-        public static void train(string trainDataPath,out HashSet<string> stateSet,out Dictionary<String, Dictionary<String, double>> emissionCounts,out Dictionary<String, Dictionary<String, double>> transitionCounts)
+        private static void tritrain(string trainDataPath, out HashSet<string> tristateSet, out Dictionary<string, Dictionary<string, double>> triemissionCounts, out Dictionary<string, Dictionary<string, Dictionary<string, double>>> tritransitionCounts)
+        {
+            tritransitionCounts = new Dictionary<string, Dictionary<string, Dictionary<string, double>>>();
+            triemissionCounts = new Dictionary<string, Dictionary<string, double>>();
+            tristateSet = new HashSet<string>();
+
+            using (StreamReader reader = new StreamReader(trainDataPath))
+            {
+                while (!reader.EndOfStream)
+                {
+                    var line = reader.ReadLine();
+                    var obj = JsonConvert.DeserializeObject<List<List<string>>>(line);
+                    obj.Insert(0, new List<string> { startWord, startWord });
+                    obj.Insert(0, new List<string> { startWord, startWord });
+                    for (int i = 2; i < obj.Count; i++)
+                    {
+
+                        var word = obj[i][0];
+                        var tag = obj[i][1];
+                        var prevTag = obj[i - 1][1];
+                        var twoPrevTag = obj[i - 2][1];
+
+                        tristateSet.Add(tag);
+
+                        //emission
+                        if (triemissionCounts.ContainsKey(tag))
+                        {
+                            var tagValues = triemissionCounts[tag];
+                            if (tagValues.ContainsKey(word))
+                            {
+                                tagValues[word]++;
+                            }
+                            else
+                            {
+                                tagValues.Add(word, 1);
+                            }
+                        }
+                        else
+                        {
+                            var wordDictionary = new Dictionary<string, double>();
+                            wordDictionary.Add(word, 1);
+                            triemissionCounts.Add(tag, wordDictionary);
+                        }
+
+                        //transition
+
+                        if (tritransitionCounts.ContainsKey(twoPrevTag))
+                        {
+                            var twoprevTagValues = tritransitionCounts[twoPrevTag];
+                            if (twoprevTagValues.ContainsKey(prevTag))
+                            {
+                                var prevTagValue = twoprevTagValues[prevTag];
+                                if (prevTagValue.ContainsKey(tag))
+                                {
+                                    prevTagValue[tag]++;
+                                }
+                                else
+                                {
+                                    prevTagValue.Add(tag, 1);
+                                }
+                            }
+                            else
+                            {
+                                var tagDictionary = new Dictionary<string, double>();
+                                tagDictionary.Add(tag, 1);
+                                twoprevTagValues.Add(prevTag, tagDictionary);
+                            }
+                        }
+                        else
+                        {
+                            var tagDictionary = new Dictionary<string, double>();
+                            tagDictionary.Add(tag, 1);
+                            var twotagDictionary = new Dictionary<string, Dictionary<string, double>>();
+                            twotagDictionary.Add(prevTag, tagDictionary);
+                            tritransitionCounts.Add(twoPrevTag, twotagDictionary);
+                        }
+
+                    }
+                    //handle last transition to stop in list
+
+
+                    var twoPrev = obj[obj.Count - 2][1];
+                    var prev = obj.Last()[1];
+
+                    if (tritransitionCounts.ContainsKey(twoPrev))
+                    {
+                        var twoprevTagValues = tritransitionCounts[twoPrev];
+                        if (twoprevTagValues.ContainsKey(prev))
+                        {
+                            var prevTagValue = twoprevTagValues[prev];
+                            if (prevTagValue.ContainsKey(stopWord))
+                            {
+                                prevTagValue[stopWord]++;
+                            }
+                            else
+                            {
+                                prevTagValue.Add(stopWord, 1);
+                            }
+                        }
+                        else
+                        {
+                            var tagDictionary = new Dictionary<string, double>();
+                            tagDictionary.Add(stopWord, 1);
+                            twoprevTagValues.Add(prev, tagDictionary);
+                        }
+                    }
+                    else
+                    {
+                        var tagDictionary = new Dictionary<string, double>();
+                        tagDictionary.Add(stopWord, 1);
+                        var twotagDictionary = new Dictionary<string, Dictionary<string, double>>();
+                        twotagDictionary.Add(prev, tagDictionary);
+                        tritransitionCounts.Add(twoPrev, twotagDictionary);
+                    }
+
+                    //update sentence count = # stop tags
+                    sentenceCount++;
+                }
+            }
+
+            tristateSet.Remove(startWord);
+        }
+
+        public static void train(string trainDataPath, out HashSet<string> stateSet, out Dictionary<String, Dictionary<String, double>> emissionCounts, out Dictionary<String, Dictionary<String, double>> transitionCounts)
         {
             transitionCounts = new Dictionary<string, Dictionary<string, double>>();
             emissionCounts = new Dictionary<string, Dictionary<string, double>>();
@@ -246,9 +423,9 @@ namespace hw2
                     }
                 }
             }
+
             Dictionary<string, int> filteredWordSet = wordSetL.Where(x => (x.Value >= unk)).ToDictionary(x => x.Key, x => x.Value);
             filteredWordSet.Add(unkWord, 0);
-
 
             using (StreamReader reader = new StreamReader(dataPath))
             {
@@ -275,16 +452,16 @@ namespace hw2
             return filteredWordSet;
         }
 
-        public static Tuple<double,double> writeConfusionMatrix(string confusionOutput, HashSet<string> completeTagSet, Dictionary<string, Dictionary<string, int>> confusionMatrix)
+        public static Tuple<double, double> writeConfusionMatrix(string confusionOutput, HashSet<string> completeTagSet, Dictionary<string, Dictionary<string, int>> confusionMatrix)
         {
             double totalCorrect = 0;
             double totalTags = 0;
             List<string> lines = new List<string>();
-            var header = "\t ";
+            var header = "     ";
             foreach (var tag in completeTagSet)
             {
-                header += tag + "\t";
-                var line = tag + "\t";
+                header += tag + "    ";
+                var line = tag + "    ";
                 foreach (var secondTag in completeTagSet)
                 {
                     if (confusionMatrix.ContainsKey(tag))
@@ -297,16 +474,22 @@ namespace hw2
                                 totalCorrect += confusionMatrix[tag][secondTag];
                             }
                             totalTags += confusionMatrix[tag][secondTag];
-                            line += confusionMatrix[tag][secondTag] + "\t";
+                            var value = confusionMatrix[tag][secondTag] + "";
+                            var count = 5 - value.Length;
+                            for (int l = 0; l < count; l++)
+                            {
+                                value += " ";
+                            }
+                            line += value;
                         }
                         else
                         {
-                            line += 0 + "\t";
+                            line += 0 + "    ";
                         }
                     }
                     else
                     {
-                        line += 0 + "\t";
+                        line += 0 + "    ";
                     }
                 }
                 lines.Add(line);
@@ -370,10 +553,52 @@ namespace hw2
                 }
             }
 
-            return Tuple.Create(confusionMatrix,completeTagSet);
+            return Tuple.Create(confusionMatrix, completeTagSet);
         }
 
-        public static Dictionary<string,Dictionary<string,double>> addkSmooth(Dictionary<String, Dictionary<String, double>> dictionary)
+        public static Dictionary<String, Dictionary<String, Dictionary<String, double>>> triaddkSmooth(Dictionary<String, Dictionary<String, Dictionary<String, double>>> dictionary)
+        {
+
+            foreach (var twoprevtag in dictionary)
+            {
+                var twoprevVal = twoprevtag.Value;
+                // var temp = new Dictionary<string, Dictionary<string, double>>();
+                var innerTemp = new Dictionary<string, double>();
+                // innerTemp.Add(unkWord, 0);
+                //temp.Add(unkWord, innerTemp);
+                twoprevVal.Add(unkWord, innerTemp);
+
+                foreach (var prevtag in twoprevVal)
+                {
+                    var prevval = prevtag.Value;
+                    prevval.Add(unkWord, 0);
+                }
+            }
+            var newCount = new Dictionary<String, Dictionary<String, Dictionary<String, double>>>();
+            double sum = dictionary.First().Value.First().Value.Count * k;
+            foreach (var twoprevtag in dictionary)
+            {
+                var tempA = new Dictionary<string, Dictionary<string, double>>();
+
+                foreach (var prevtag in twoprevtag.Value)
+                {
+                    var tempB = new Dictionary<string, double>();
+
+                    foreach (var tag in prevtag.Value)
+                    {
+                        var rest = dictionary[twoprevtag.Key][prevtag.Key][tag.Key] + (sum / prevtag.Value.Count);
+                        tempB.Add(tag.Key, rest);
+
+                    }
+                    tempA.Add(prevtag.Key, tempB);
+                }
+                newCount.Add(twoprevtag.Key, tempA);
+            }
+
+            return newCount;
+        }
+
+        public static Dictionary<string, Dictionary<string, double>> addkSmooth(Dictionary<String, Dictionary<String, double>> dictionary)
         {
             var newCount = new Dictionary<String, Dictionary<String, double>>();
             foreach (var tag in dictionary)
@@ -399,9 +624,10 @@ namespace hw2
             return newCount;
         }
 
+
         public static Dictionary<String, Dictionary<String, double>> convertToProbability(Dictionary<String, Dictionary<String, double>> dictionary)
         {
-            
+
             var prob = new Dictionary<String, Dictionary<String, double>>();
             foreach (var tag in dictionary)
             {
@@ -424,17 +650,49 @@ namespace hw2
             return prob;
         }
 
-        public static void forwardViterbi(string dataSet, string outputPath, Dictionary<String, Dictionary<String, double>> transitionCounts, Dictionary<String, Dictionary<String, double>> emissionCounts, HashSet<string> stateSet)
+        public static Dictionary<String, Dictionary<String, Dictionary<String, double>>> triconvertToProbability(Dictionary<String, Dictionary<String, Dictionary<String, double>>> dictionary)
+        {
+
+            var prob = new Dictionary<String, Dictionary<String, Dictionary<String, double>>>();
+            foreach (var tag in dictionary)
+            {
+                var newlist = new Dictionary<string, Dictionary<string, double>>();
+                foreach (var innertag in tag.Value)
+                {
+                    var innerList = new Dictionary<string, double>();
+                    var sum = innertag.Value.Sum(x => x.Value);
+                    foreach (var finaltag in innertag.Value)
+                    {
+                        double numerator = finaltag.Value;
+                        double denominator = sum;
+                        var lognm = Math.Log(numerator);
+                        var logdm = Math.Log(denominator);
+                        double logdivision = lognm - logdm;
+                        innerList.Add(finaltag.Key, logdivision);
+                    }
+                    newlist.Add(innertag.Key, innerList);
+
+                }
+
+
+                prob.Add(tag.Key, newlist);
+
+            }
+
+            return prob;
+        }
+
+        public static void Viterbi(string dataSet, string outputPath, Dictionary<String, Dictionary<String, double>> transitionCounts, Dictionary<String, Dictionary<String, double>> emissionCounts, HashSet<string> stateSet)
         {
             using (StreamReader reader = new StreamReader(dataSet))
             {
                 using (StreamWriter writer = new StreamWriter(outputPath))
                 {
                     var linecount = 0;
-                    while (!reader.EndOfStream)// && linecount != 1000
+                    while (!reader.EndOfStream)
                     {
                         linecount++;
-                        if(linecount % 1000 == 0 )
+                        if (linecount % 1000 == 0)
                         {
                             Console.WriteLine("Running Viterbi on line: " + linecount);
                         }
@@ -544,61 +802,177 @@ namespace hw2
             }
         }
 
-        public static double logProbTransition(Dictionary<String, Dictionary<String, double>> dict, string first, string second)
+        public static void triViterbi(string dataSet, string outputPath, Dictionary<String, Dictionary<String, Dictionary<String, double>>> transitionCounts, Dictionary<String, Dictionary<String, double>> emissionCounts, HashSet<string> stateSet)
         {
-            //bigram
-            double numerator = dict[first].ContainsKey(second) ? dict[first][second] : dict[first][unkWord];
-            double denominator = dict[first].Sum(x => x.Value);
-
-
-
-            double lognm = Math.Log(numerator);
-            double logdm = Math.Log(denominator);
-            double logdivision = lognm - logdm;
-
-
-
-            ////unigram
-            //double uniNumerator;
-            //if (second == stopWord)
-            //{
-            //    uniNumerator = sentenceCount;//times we have seen a stop
-            //}
-            //else
-            //{
-            //    uniNumerator = dict[second].Sum(x => x.Value);
-            //}
-            //double uniDenominator = dict.Sum(x => x.Value.Sum(y => y.Value));
-            //double uninmlog = Math.Log(uniNumerator);
-            //double unidmlog = Math.Log(uniDenominator);
-            //double uniDivision = uninmlog - unidmlog;
-
-
-            return logdivision;//lambda2 * logdivision + lambda1 * uniDivision;
-        }
-
-        public static double logProbEmission(Dictionary<String, Dictionary<String, double>> dict, string first, string second)
-        {
-            if (first == stopWord && second == stopWord)
+            using (StreamReader reader = new StreamReader(dataSet))
             {
-                return 0;
+                using (StreamWriter writer = new StreamWriter(outputPath))
+                {
+                    var linecount = 0;
+                    while (!reader.EndOfStream)
+                    {
+                        linecount++;
+                        if (linecount % 1000 == 0)
+                        {
+                            Console.WriteLine("Running trigram Viterbi on line: " + linecount);
+                        }
+                        var line = reader.ReadLine();
+                        var dataObject = JsonConvert.DeserializeObject<List<List<string>>>(line);
+                        var bestScore = new Dictionary<string, double>();
+                        var bestTag = new Dictionary<string, string>();
+
+
+                        //start start first tag
+                        int i = 0;
+                        foreach (var tag in stateSet)
+                        {
+                            var key = "" + i + " " + startWord + " " + tag;
+                            var word = emissionCounts[tag].ContainsKey(dataObject[i][0]) ? dataObject[i][0] : unkWord;
+                            var prevtag = startWord;
+                            var prev2tag = startWord;
+                            var finTag = transitionCounts[prev2tag][prevtag].ContainsKey(tag) ? tag : unkWord;
+                            double prob = transitionCounts[prev2tag][prevtag][finTag] + emissionCounts[tag][word];
+                            bestScore.Add(key, prob);
+                            bestTag.Add(key, startWord);
+
+                        }
+
+                        //start first second
+                        if(dataObject.Count==1)
+                        {
+                            continue;
+                        }
+                        i = 1;
+                        foreach (var tag in stateSet)
+                        {
+                            foreach (var prevTag in stateSet)
+                            {
+
+                                var key = "" + i + " " + prevTag + " " + tag;
+                                var word = emissionCounts[tag].ContainsKey(dataObject[i][0]) ? dataObject[i][0] : unkWord;
+                                var prev2tag = startWord;
+                                var finprevtag = transitionCounts[prev2tag].ContainsKey(prevTag) ? prevTag : unkWord;
+                                var finTag = transitionCounts[prev2tag][finprevtag].ContainsKey(tag) ? tag : unkWord;
+                                double prob = bestScore[i - 1 + " " + startWord + " " + prevTag] + transitionCounts[prev2tag][finprevtag][finTag] + emissionCounts[tag][word];
+
+
+                                if (bestScore.ContainsKey(key))
+                                {
+                                    var currentlogprob = bestScore[key];
+                                    if (prob > currentlogprob)
+                                    {
+                                        bestScore[key] = prob;
+                                        bestTag[key] = prev2tag;
+                                    }
+                                }
+                                else
+                                {
+                                    bestScore.Add(key, prob);
+                                    bestTag.Add(key, prev2tag);
+                                }
+                            }
+                        }
+
+                        //first second third
+                        for (i = 2; i < dataObject.Count; i++)
+                        {
+                            foreach (var tag in stateSet)
+                            {
+                                var word = emissionCounts[tag].ContainsKey(dataObject[i][0]) ? dataObject[i][0] : unkWord;
+
+
+                                foreach (var prevTag in stateSet)
+                                {
+                                    foreach (var prev2tag in stateSet)
+                                    {
+                                        var key = "" + i + " " + prevTag + " " + tag;
+                                        var finprevtag = transitionCounts[prev2tag].ContainsKey(prevTag) ? prevTag : unkWord;
+                                        var finTag = transitionCounts[prev2tag][finprevtag].ContainsKey(tag) ? tag : unkWord;
+                                        double prob = bestScore[i - 1 + " " + prev2tag + " " + prevTag] + transitionCounts[prev2tag][finprevtag][finTag] + emissionCounts[tag][word];
+
+
+                                        if (bestScore.ContainsKey(key))
+                                        {
+                                            var currentlogprob = bestScore[key];
+                                            if (prob > currentlogprob)
+                                            {
+                                                bestScore[key] = prob;
+                                                bestTag[key] = prev2tag;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            bestScore.Add(key, prob);
+                                            bestTag.Add(key, prev2tag);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+
+                        //transition to stop
+                        var bestprev = "";
+                        var bestprev2 = "";
+                        double finalScore = Double.MinValue;
+                        foreach (var prevTag in stateSet)
+                        {
+                            foreach (var prev2tag in stateSet)
+                            {
+                                var key = "" + i + " " + stopWord;
+                                var finprevtag = transitionCounts[prev2tag].ContainsKey(prevTag) ? prevTag : unkWord;
+                                var finTag = transitionCounts[prev2tag][finprevtag].ContainsKey(stopWord) ? stopWord : unkWord;
+                                double prob = bestScore[i - 1 + " " + prev2tag + " " + prevTag] + transitionCounts[prev2tag][finprevtag][finTag];
+
+                                if (prob > finalScore)
+                                {
+                                    finalScore = prob;
+                                    bestprev = prevTag;
+                                    bestprev2 = prev2tag;
+                                }
+
+                            }
+                        }
+
+
+                        //backtrack and give tags
+
+                        List<string> tags = new List<string>();
+
+                        tags.Add(bestprev);
+                        tags.Insert(0,bestprev2);
+                        i--;//go back to before stop
+                        while(i>=0)
+                        {
+
+                            var key = i + " " + tags[1] + " " + tags[0];
+                            var val = bestTag[key];
+                            tags.Insert(0, val);
+                            if(val.Equals(startWord))
+                            {
+                                break;
+                            }
+
+                            i--;
+                        }
+
+                        tags.RemoveAt(0);
+
+                       var outobj = new List<List<string>>();
+
+                        for (int m = 0; m < dataObject.Count; m++)
+                        {
+                            var tuple = new List<string>();
+                            tuple.Add(dataObject[m][0]);
+                            tuple.Add(tags[m]);
+                            outobj.Add(tuple);
+                        }
+                        var json = JsonConvert.SerializeObject(outobj);
+                        writer.WriteLine(json);
+                    }
+
+                }
             }
-            //bigram
-            double numerator = dict[first].ContainsKey(second) ? dict[first][second] : dict[first][unkWord];
-            double denominator = dict[first].Sum(x => x.Value);
-            var lognm = Math.Log(numerator);
-            var logdm = Math.Log(denominator);
-            double logdivision = lognm - logdm;
-
-            ////signle
-            //var singleNum = wordSet.ContainsKey(second) ? wordSet[second]: wordSet[unkWord];
-            //var sum = wordSet.Sum(x => x.Value);
-            //var singleDivision = singleNum / sum;
-            //var singleLog = division == 0 ? 0 : Math.Log(division);
-
-            //return lambda2 * log + lambda1 * singleLog;
-
-            return logdivision;
         }
     }
 }
