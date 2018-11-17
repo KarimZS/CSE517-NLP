@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "hw2", "hw2\hw2.csproj", "{52A47D96-92F9-4401-BD8B-9E1640EEDCE9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "hw3", "hw3\hw3.csproj", "{AB4CF2FE-08BF-475E-BA28-DDBD41562551}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -13,5 +15,9 @@ Global
 		{52A47D96-92F9-4401-BD8B-9E1640EEDCE9}.Debug|x86.Build.0 = Debug|x86
 		{52A47D96-92F9-4401-BD8B-9E1640EEDCE9}.Release|x86.ActiveCfg = Release|x86
 		{52A47D96-92F9-4401-BD8B-9E1640EEDCE9}.Release|x86.Build.0 = Release|x86
+		{AB4CF2FE-08BF-475E-BA28-DDBD41562551}.Debug|x86.ActiveCfg = Debug|x86
+		{AB4CF2FE-08BF-475E-BA28-DDBD41562551}.Debug|x86.Build.0 = Debug|x86
+		{AB4CF2FE-08BF-475E-BA28-DDBD41562551}.Release|x86.ActiveCfg = Release|x86
+		{AB4CF2FE-08BF-475E-BA28-DDBD41562551}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 EndGlobal
