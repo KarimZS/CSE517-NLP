@@ -43,6 +43,7 @@
     <None Include="conll03_ner\eng.test.small" />
     <None Include="conll03_ner\eng.train" />
     <None Include="conll03_ner\eng.train.small" />
+    <None Include="conll03_ner\eng.train.small.result" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
