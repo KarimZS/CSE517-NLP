@@ -8,33 +8,23 @@ namespace hw3
     {
         public static string startWord = "*START*";
         public static string stopWord = "*STOP*";
-        public static int numIterations = 10;
+        public static int numIterations = 20;
 
         public static Random rand = new Random();
 
 
         public static void Main(string[] args)
         {
+            var start = DateTime.Now;
+
             var trainDataPath = @"../../conll03_ner/eng.train.small";
             var trainDataResult = @"../../conll03_ner/eng.train.small.result";
 
             var devDataPath = @"../../conll03_ner/eng.dev.small";
-            var devDataResult = @"../../conll03_ner/eng.dev.small.result";
+            var devDataResult = @"../../conll03_ner/eng.dev.small.result.noFirstUpper";
 
-            //var tagset = new HashSet<string>();
-            //tagset.Add("B-ORG");
-            //tagset.Add("I-ORG");
-
-            //tagset.Add("B-LOC");
-            //tagset.Add("I-LOC");
-
-            //tagset.Add("B-PER");
-            //tagset.Add("I-PER");
-
-            //tagset.Add("B-MISC");
-            //tagset.Add("I-MISC");
-
-            //tagset.Add("O");
+            var testDataPath = @"../../conll03_ner/eng.test.small";
+            var testDataResult = @"../../conll03_ner/eng.test.small.result.noFirstUpper";
 
             getFeatureClassesFromFile(trainDataPath, out HashSet<string> posSet, out HashSet<string> wordSet, out HashSet<string> chunkSet, out HashSet<string> nerTagSet);
             
@@ -43,10 +33,15 @@ namespace hw3
 
             var trainedWeights = train(trainDataPath, numIterations, initialWeights, nerTagSet);
 
-            evaluate(trainDataPath, trainDataResult, trainedWeights, nerTagSet);
+            //evaluate(trainDataPath, trainDataResult, trainedWeights, nerTagSet);
 
             evaluate(devDataPath, devDataResult, trainedWeights, nerTagSet);
 
+            evaluate(testDataPath, testDataResult, trainedWeights, nerTagSet);
+
+            var end = DateTime.Now;
+
+            Console.WriteLine("Total time taken: "+ (end-start));
         }
 
         private static void getFeatureClassesFromFile(string filePath,out HashSet<string> posSet, out HashSet<string> wordSet, out HashSet<string> chunkSet, out HashSet<string> nerTagSet)
@@ -120,9 +115,9 @@ namespace hw3
             {
                 for (int i = 0; i < sentenceList.Count; i++)
                 {
-                    if (i % 1000 == 0)
+                    if ((i+1) % 100 == 0)
                     {
-                        Console.WriteLine("Evaluating sentence: " + i);
+                        Console.WriteLine("Evaluating sentence: " + (i+1));
                     }
 
                     var currentSentence = sentenceList[i];
@@ -366,15 +361,15 @@ namespace hw3
 
             //i think these will always be same since truth and predicted are calculated by me
            //first letter is uppercase
-            if (char.IsUpper(currentWord.text[0]))
-            {
-                featureVector.Add("firstUpper"+currentTag, 1);
-            }
+            //if (char.IsUpper(currentWord.text[0]))
+            //{
+            //    featureVector.Add("firstUpper"+currentTag, 1);
+            //}
 
             //whole word is upper case
             if (currentWord.text.Equals(currentWord.text.ToUpper()))
             {
-                featureVector.Add("allUpper"+currentTag, 1);
+                featureVector.Add("allUpper" + currentTag, 1);
             }
 
 
@@ -402,10 +397,6 @@ namespace hw3
 
             var weights = new Dictionary<string, double>();
 
-
-
-
-           
             foreach (var outside in tagset)
             {
                 foreach (var inside in tagset)
@@ -414,7 +405,7 @@ namespace hw3
                     weights.Add(outside + "#" + inside, Rand());
                 }
 
-                weights.Add("firstUpper"+outside, Rand());
+              //  weights.Add("firstUpper"+outside, Rand());
                 weights.Add("allUpper"+outside, Rand());
 
 
