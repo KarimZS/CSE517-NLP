@@ -21,10 +21,10 @@ namespace hw3
             var trainDataResult = @"../../conll03_ner/eng.train.small.result";
 
             var devDataPath = @"../../conll03_ner/eng.dev.small";
-            var devDataResult = @"../../conll03_ner/eng.dev.small.result.noFirstUpper";
+            var devDataResult = @"../../conll03_ner/eng.dev.small.result.noWord";
 
             var testDataPath = @"../../conll03_ner/eng.test.small";
-            var testDataResult = @"../../conll03_ner/eng.test.small.result.noFirstUpper";
+            var testDataResult = @"../../conll03_ner/eng.test.small.result.noWord";
 
             getFeatureClassesFromFile(trainDataPath, out HashSet<string> posSet, out HashSet<string> wordSet, out HashSet<string> chunkSet, out HashSet<string> nerTagSet);
             
@@ -360,11 +360,11 @@ namespace hw3
             var currentWord = sentence.words[wordNumber];
 
             //i think these will always be same since truth and predicted are calculated by me
-           //first letter is uppercase
-            //if (char.IsUpper(currentWord.text[0]))
-            //{
-            //    featureVector.Add("firstUpper"+currentTag, 1);
-            //}
+            //first letter is uppercase
+            if (char.IsUpper(currentWord.text[0]))
+            {
+                featureVector.Add("firstUpper" + currentTag, 1);
+            }
 
             //whole word is upper case
             if (currentWord.text.Equals(currentWord.text.ToUpper()))
@@ -386,7 +386,7 @@ namespace hw3
             //featureVector.Add("CHUNK#"+currentWord.chunkTag, 1);
 
             //word feature
-            featureVector.Add(currentTag+"#"+currentWord.text, 1);
+           // featureVector.Add(currentTag+"#"+currentWord.text, 1);
 
             return featureVector;
 
@@ -405,7 +405,7 @@ namespace hw3
                     weights.Add(outside + "#" + inside, Rand());
                 }
 
-              //  weights.Add("firstUpper"+outside, Rand());
+                weights.Add("firstUpper"+outside, Rand());
                 weights.Add("allUpper"+outside, Rand());
 
 
@@ -418,10 +418,10 @@ namespace hw3
                 weights.Add("NER#"+outside, Rand());
 
                 //WORD CLASS FEATURE
-                foreach (var word in wordSet)
-                {
-                    weights.Add(outside+"#" + word, Rand());
-                }
+                //foreach (var word in wordSet)
+                //{
+                //    weights.Add(outside+"#" + word, Rand());
+                //}
             }
 
            
