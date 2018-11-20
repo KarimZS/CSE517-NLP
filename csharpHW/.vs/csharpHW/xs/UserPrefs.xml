@@ -1,11 +1,11 @@
 ﻿<Properties StartupConfiguration="{AB4CF2FE-08BF-475E-BA28-DDBD41562551}|Default">
-  <MonoDevelop.Ide.Workbench ActiveDocument="hw3/conll03_ner/eng.train.small.result">
+  <MonoDevelop.Ide.Workbench ActiveDocument="hw3/Program.cs">
     <Files>
       <File FileName="hw2/CSE517_HW_HMM_Data/twt.train.json" Line="30886" Column="392" />
       <File FileName="hw2/CSE517_HW_HMM_Data/twt.train.filtered.json" Line="1" Column="1" />
       <File FileName="hw2/Program.cs" Line="314" Column="46" />
-      <File FileName="hw3/Program.cs" Line="46" Column="1" />
-      <File FileName="hw3/conll03_ner/eng.train.small.result" Line="42754" Column="1" />
+      <File FileName="hw3/conll03_ner/eng.train.small.result" Line="41426" Column="10" />
+      <File FileName="hw3/Program.cs" Line="12" Column="1" />
     </Files>
     <Pads>
       <Pad Id="MonoDevelop.Debugger.WatchPad">
@@ -22,9 +22,8 @@
       <Breakpoint enabled="false" file="/Users/karim/Documents/uwash/csep 517 - nlp/repo/CSE517-NLP/csharpHW/hw2/Program.cs" relfile="hw2/Program.cs" line="118" column="1" />
       <Breakpoint file="/Users/karim/Documents/uwash/csep 517 - nlp/repo/CSE517-NLP/csharpHW/hw2/Program.cs" relfile="hw2/Program.cs" line="130" column="1" />
       <Breakpoint enabled="false" file="/Users/karim/Documents/uwash/csep 517 - nlp/repo/CSE517-NLP/csharpHW/hw2/Program.cs" relfile="hw2/Program.cs" line="107" column="1" />
-      <Breakpoint file="/Users/karim/Documents/uwash/csep 517 - nlp/repo/CSE517-NLP/csharpHW/hw3/Program.cs" relfile="hw3/Program.cs" line="39" column="1" />
       <Breakpoint file="/Users/karim/Documents/uwash/csep 517 - nlp/repo/CSE517-NLP/csharpHW/hw3/Program.cs" relfile="hw3/Program.cs" line="46" column="1" />
-      <Breakpoint file="/Users/karim/Documents/uwash/csep 517 - nlp/repo/CSE517-NLP/csharpHW/hw3/Program.cs" relfile="hw3/Program.cs" line="43" column="1" />
+      <Breakpoint file="/Users/karim/Documents/uwash/csep 517 - nlp/repo/CSE517-NLP/csharpHW/hw3/Program.cs" relfile="hw3/Program.cs" line="45" column="1" />
     </BreakpointStore>
   </MonoDevelop.Ide.DebuggingService.Breakpoints>
   <MonoDevelop.Ide.DebuggingService.PinnedWatches />

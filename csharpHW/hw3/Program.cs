@@ -21,30 +21,46 @@ namespace hw3
             var trainDataResult = @"../../conll03_ner/eng.train.small.result";
 
             var devDataPath = @"../../conll03_ner/eng.dev.small";
-            var devDataResult = @"../../conll03_ner/eng.dev.small.result.noWord";
+            var devDataResult = @"../../conll03_ner/eng.dev.small.result";
 
             var testDataPath = @"../../conll03_ner/eng.test.small";
-            var testDataResult = @"../../conll03_ner/eng.test.small.result.noWord";
+            var testDataResult = @"../../conll03_ner/eng.test.small.result";
 
             getFeatureClassesFromFile(trainDataPath, out HashSet<string> posSet, out HashSet<string> wordSet, out HashSet<string> chunkSet, out HashSet<string> nerTagSet);
-            
 
-            var initialWeights = initializeWeights(nerTagSet,posSet,wordSet,chunkSet);
+
+            var initialWeights = initializeWeights(nerTagSet, posSet, wordSet, chunkSet);
 
             var trainedWeights = train(trainDataPath, numIterations, initialWeights, nerTagSet);
 
-            //evaluate(trainDataPath, trainDataResult, trainedWeights, nerTagSet);
+            if (args.Length == 1)
+            {
+                switch (args[0])
+                {
+                    case "train":
+                        evaluate(trainDataPath, trainDataResult, trainedWeights, nerTagSet);
+                        break;
+                    case "dev":
+                        evaluate(devDataPath, devDataResult, trainedWeights, nerTagSet);
+                        break;
+                    case "test":
+                        evaluate(testDataPath, testDataResult, trainedWeights, nerTagSet);
+                        break;
 
-            evaluate(devDataPath, devDataResult, trainedWeights, nerTagSet);
-
-            evaluate(testDataPath, testDataResult, trainedWeights, nerTagSet);
+                }
+            }
+            else
+            {
+                Console.WriteLine("To run this code, provide parameter train, dev, or test, to determine which set to run on");
+                Console.WriteLine("This will always train on small training set and run on the chosen small set.");
+            }
 
             var end = DateTime.Now;
 
-            Console.WriteLine("Total time taken: "+ (end-start));
+            Console.WriteLine("Total time taken: " + (end - start));
         }
 
-        private static void getFeatureClassesFromFile(string filePath,out HashSet<string> posSet, out HashSet<string> wordSet, out HashSet<string> chunkSet, out HashSet<string> nerTagSet)
+        private static void getFeatureClassesFromFile(string filePath, out HashSet<string> posSet, out HashSet<string> wordSet, out HashSet<string> chunkSet, out HashSet<string> nerTagSet)
         {
             posSet = new HashSet<string>();
             wordSet = new HashSet<string>();
@@ -53,7 +69,7 @@ namespace hw3
 
             using (StreamReader reader = new StreamReader(filePath))
             {
-                while(!reader.EndOfStream)
+                while (!reader.EndOfStream)
                 {
                     var line = reader.ReadLine();
 
@@ -74,7 +90,7 @@ namespace hw3
 
         }
 
-        private static void evaluate(string filePath,string outputPath, Dictionary<string, double> trainedWeights, HashSet<string> tagset)
+        private static void evaluate(string filePath, string outputPath, Dictionary<string, double> trainedWeights, HashSet<string> tagset)
         {
             var sentenceList = new List<Sentence>();
             using (StreamReader reader = new StreamReader(filePath))
@@ -115,9 +131,9 @@ namespace hw3
             {
                 for (int i = 0; i < sentenceList.Count; i++)
                 {
-                    if ((i+1) % 100 == 0)
+                    if ((i + 1) % 100 == 0)
                     {
-                        Console.WriteLine("Evaluating sentence: " + (i+1));
+                        Console.WriteLine("Evaluating sentence: " + (i + 1));
                     }
 
                     var currentSentence = sentenceList[i];
@@ -135,7 +151,7 @@ namespace hw3
 
                 }
             }
-               
+
         }
 
         public static Dictionary<string, double> train(string filePath, int numIterations, Dictionary<string, double> initialWeights, HashSet<string> tagset)
@@ -177,20 +193,20 @@ namespace hw3
             }   //have sentence list
 
             var currentWeights = new Dictionary<string, double>(initialWeights);//have to actually pre initialize this. adding as time goes will ruin the avg division. one time seeing bigram will add/remove weight of 1time/numsentences not 1/1
-            var sumWeights = new Dictionary<string,double>(currentWeights);
+            var sumWeights = new Dictionary<string, double>(currentWeights);
             var numWeightsSummed = 1;
 
             //loop through sentences numIteration times
             for (int iteration = 0; iteration < numIterations; iteration++)
             {
-                Console.WriteLine("Training iteration: " + (iteration+1));
+                Console.WriteLine("Training iteration: " + (iteration + 1));
 
                 //loop through sentence
                 for (int i = 0; i < sentenceList.Count; i++)
                 {
-                    if ((i+1) % 1000 == 0)
+                    if ((i + 1) % 1000 == 0)
                     {
-                        Console.WriteLine("Running Viterbi on sentence: " + (i+1));
+                        Console.WriteLine("Running Viterbi on sentence: " + (i + 1));
                     }
 
                     var currentSentence = sentenceList[i];
@@ -204,7 +220,7 @@ namespace hw3
                     for (int j = 1; j < currentSentence.words.Count; j++)
                     {
                         var currentWord = currentSentence.words[j];
-                        var prevWord = currentSentence.words[j-1];
+                        var prevWord = currentSentence.words[j - 1];
 
                         var wordpredictedFeatures = getFeatures(currentSentence, j, tagSequence[j], tagSequence[j - 1]);
                         predictedFeatureVector = addVectors(predictedFeatureVector, wordpredictedFeatures);
@@ -217,7 +233,7 @@ namespace hw3
 
                     //might need to check if the vectors are equal before adding and avg
                     //update weights
-                    if(!sameVector(predictedFeatureVector,truthFeatureVector))
+                    if (!sameVector(predictedFeatureVector, truthFeatureVector))
                     {
                         currentWeights = addVectorsWeight(currentWeights, truthFeatureVector);
                         currentWeights = subtractVectors(currentWeights, predictedFeatureVector);
@@ -225,7 +241,7 @@ namespace hw3
                         sumWeights = addVectorsWeight(sumWeights, currentWeights);
                         numWeightsSummed++;
                     }
-                   
+
                 }
             }
 
@@ -236,11 +252,11 @@ namespace hw3
 
         private static bool sameVector(Dictionary<string, double> predictedFeatureVector, Dictionary<string, double> truthFeatureVector)
         {
-            if(predictedFeatureVector.Count != truthFeatureVector.Count)
+            if (predictedFeatureVector.Count != truthFeatureVector.Count)
             {
                 return false;
             }
-            foreach(var tag in predictedFeatureVector)
+            foreach (var tag in predictedFeatureVector)
             {
                 if (truthFeatureVector.ContainsKey(tag.Key))
                 {
@@ -259,7 +275,7 @@ namespace hw3
                 }
             }
             return true;
-            
+
         }
 
         private static Dictionary<string, double> divideVector(Dictionary<string, double> vector, int denominator)
@@ -351,7 +367,7 @@ namespace hw3
             //add first is upper and not first word
 
             //handle stop
-            if(currentTag.Equals(stopWord))
+            if (currentTag.Equals(stopWord))
             {
                 featureVector.Add(previousTag + "#" + currentTag, 1);
                 return featureVector;
@@ -374,7 +390,7 @@ namespace hw3
 
 
             //current tag
-            featureVector.Add("NER#"+currentTag, 1);
+            featureVector.Add("NER#" + currentTag, 1);
 
             //bigram of prediction class 
             featureVector.Add(previousTag + "#" + currentTag, 1);
@@ -386,13 +402,13 @@ namespace hw3
             //featureVector.Add("CHUNK#"+currentWord.chunkTag, 1);
 
             //word feature
-           // featureVector.Add(currentTag+"#"+currentWord.text, 1);
+            // featureVector.Add(currentTag+"#"+currentWord.text, 1);
 
             return featureVector;
 
         }
 
-        private static Dictionary<string, double> initializeWeights(HashSet<string> tagset,HashSet<string> posSet, HashSet<string> wordSet, HashSet<string> chunkSet)
+        private static Dictionary<string, double> initializeWeights(HashSet<string> tagset, HashSet<string> posSet, HashSet<string> wordSet, HashSet<string> chunkSet)
         {
 
             var weights = new Dictionary<string, double>();
@@ -405,8 +421,8 @@ namespace hw3
                     weights.Add(outside + "#" + inside, Rand());
                 }
 
-                weights.Add("firstUpper"+outside, Rand());
-                weights.Add("allUpper"+outside, Rand());
+                weights.Add("firstUpper" + outside, Rand());
+                weights.Add("allUpper" + outside, Rand());
 
 
 
@@ -415,7 +431,7 @@ namespace hw3
                 //add tag-stop bigrams
                 weights.Add(outside + "#" + stopWord, Rand());
                 //add unigram tag
-                weights.Add("NER#"+outside, Rand());
+                weights.Add("NER#" + outside, Rand());
 
                 //WORD CLASS FEATURE
                 //foreach (var word in wordSet)
@@ -424,7 +440,7 @@ namespace hw3
                 //}
             }
 
-           
+
 
             ////POS TAG CLASS FEATURE
             //foreach(var tag in posSet)
@@ -433,7 +449,7 @@ namespace hw3
             //}
 
 
-           
+
 
 
             ////CHUNK TAG CLASS FEATURE
@@ -467,7 +483,7 @@ namespace hw3
                 var key = i + " " + tag;
                 var featureVector = getFeatures(sentence, i, tag, startWord);
                 var score = dotProduct(weights, featureVector);
-               
+
                 bestScore.Add(key, score);
                 bestTag.Add(key, startWord);
             }
@@ -507,9 +523,9 @@ namespace hw3
 
             foreach (var prevTag in stateSet)
             {
-                var bestPreviousKey =(i - 1) + " " + prevTag;
+                var bestPreviousKey = (i - 1) + " " + prevTag;
                 var bestPreviousValue = bestScore[bestPreviousKey];
-              
+
 
                 var key = "" + i + " " + stopWord;
                 var featureVector = getFeatures(sentence, i, stopWord, prevTag);
@@ -539,7 +555,7 @@ namespace hw3
             while (!currentTag.Equals(startWord))
             {
                 var tagsplit = bestTag[currentTag].Split(' ');
-                if(tagsplit.Length==1)
+                if (tagsplit.Length == 1)
                 {
                     tags.Insert(0, tagsplit[0]);
                 }
@@ -550,10 +566,10 @@ namespace hw3
                 currentTag = bestTag[currentTag];
             }
 
-         
+
             return tags;
 
-            
+
             //var outobj = new List<List<string>>();
 
             //for (int m = 1; m <= dataObject.Count; m++)
@@ -570,11 +586,11 @@ namespace hw3
         private static double dotProduct(Dictionary<string, double> mainv1, Dictionary<string, double> v2)
         {
             var sum = 0.0;
-            foreach(var cell in v2)
+            foreach (var cell in v2)
             {
-                if(mainv1.ContainsKey(cell.Key))
+                if (mainv1.ContainsKey(cell.Key))
                 {
-                    sum+= mainv1[cell.Key]*cell.Value;
+                    sum += mainv1[cell.Key] * cell.Value;
                 }
             }
             return sum;
