@@ -42,9 +42,6 @@ def cbow_forward(config, inputs, scope=None):
 def rnn_forward(config, inputs, scope=None):
     with tf.variable_scope(scope or "forward"):
 
-
-
-
         JX, JQ = config.max_context_size, config.max_ques_size
         d = config.hidden_size
         x, x_len, q, q_len = [inputs[key] for key in ['x', 'x_len', 'q', 'q_len']]
@@ -57,38 +54,61 @@ def rnn_forward(config, inputs, scope=None):
         xx = tf.nn.embedding_lookup(emb_mat, x, name='xx')  # [N, JX, d]
         qq = tf.nn.embedding_lookup(emb_mat, q, name='qq')  # [N, JQ, d]
 
-        dd = d/2
-
+        dd = d#d/2
+        dropout = 0.5  # no dropout = 1
         with tf.variable_scope('GRU_X'):
             if config.is_train:
-                dropout = 1  # no dropout = 1
                 fwcellx = DropoutWrapper(GRUCell(dd), dropout)
                 bwcellx = DropoutWrapper(GRUCell(dd), dropout)
+
+                #for the 2 layer
+                fwcellx2 = DropoutWrapper(GRUCell(dd), dropout)
+                bwcellx2 = DropoutWrapper(GRUCell(dd), dropout)
             else:
                 fwcellx = GRUCell(dd)
                 bwcellx = GRUCell(dd)
 
+                #for the 2 layer
+                fwcellx2 = GRUCell(dd)
+                bwcellx2 = GRUCell(dd)
 
-            outputx = tf.nn.bidirectional_dynamic_rnn(cell_fw=fwcellx, cell_bw=bwcellx, inputs=xx, sequence_length=x_len, dtype=tf.float32)
-            (outputsx, output_statesx) = outputx
-            concatx = tf.concat(outputsx, 2)
+            with tf.variable_scope('layer1'):
+                outputx = tf.nn.bidirectional_dynamic_rnn(cell_fw=fwcellx, cell_bw=bwcellx, inputs=xx, sequence_length=x_len, dtype=tf.float32)
+                (outputsx, output_statesx) = outputx
+                concatx = tf.concat(outputsx, 2)
+            with tf.variable_scope('layer2'):
+                outputx = tf.nn.bidirectional_dynamic_rnn(cell_fw=fwcellx2, cell_bw=bwcellx2, inputs=concatx, dtype=tf.float32)
+                (outputsx, output_statesx) = outputx
+                concatx = tf.concat(outputsx, 2)
             print(concatx)
 
         with tf.variable_scope('GRU_Q'):
             if config.is_train:
-                dropout = 1  # no dropout = 1
                 fwcellq = DropoutWrapper(GRUCell(dd), dropout)
                 bwcellq = DropoutWrapper(GRUCell(dd), dropout)
+
+                fwcellq2 = DropoutWrapper(GRUCell(dd), dropout)
+                bwcellq2 = DropoutWrapper(GRUCell(dd), dropout)
             else:
                 fwcellq = GRUCell(dd)
                 bwcellq = GRUCell(dd)
 
-            outputq = tf.nn.bidirectional_dynamic_rnn(cell_fw=fwcellq, cell_bw=bwcellq,
+                fwcellq2 = GRUCell(dd)
+                bwcellq2 = GRUCell(dd)
+
+            with tf.variable_scope('layer1'):
+                outputq = tf.nn.bidirectional_dynamic_rnn(cell_fw=fwcellq, cell_bw=bwcellq,
                                                       inputs=qq, sequence_length=q_len,
                                                       dtype=tf.float32)
-            (outputsq, output_statesq) = outputq
-            concatq = tf.concat(outputsq, 2)
-
+                (outputsq, output_statesq) = outputq
+                concatq = tf.concat(outputsq, 2)
+            with tf.variable_scope('layer2'):
+                outputq = tf.nn.bidirectional_dynamic_rnn(cell_fw=fwcellq2, cell_bw=bwcellq2,
+                                                      inputs=concatq,dtype=tf.float32)
+                (outputsq, output_statesq) = outputq
+                concatq = tf.concat(outputsq, 2)
+        concatq = tf.layers.dense(concatq,d)
+        concatx = tf.layers.dense(concatx,d)
         xx = concatx
         qq = concatq
 
@@ -114,9 +134,6 @@ def rnn_forward(config, inputs, scope=None):
 def attention_forward(config, inputs, scope=None):
     with tf.variable_scope(scope or "forward"):
 
-
-
-
         JX, JQ = config.max_context_size, config.max_ques_size
         d = config.hidden_size
         x, x_len, q, q_len = [inputs[key] for key in ['x', 'x_len', 'q', 'q_len']]
@@ -129,46 +146,95 @@ def attention_forward(config, inputs, scope=None):
         xx = tf.nn.embedding_lookup(emb_mat, x, name='xx')  # [N, JX, d]
         qq = tf.nn.embedding_lookup(emb_mat, q, name='qq')  # [N, JQ, d]
 
-        dd = d/2
-
+        dd = d  # d/2
+        dropout = 0.5  # no dropout = 1
         with tf.variable_scope('GRU_X'):
             if config.is_train:
-                dropout = 1  # no dropout = 1
                 fwcellx = DropoutWrapper(GRUCell(dd), dropout)
                 bwcellx = DropoutWrapper(GRUCell(dd), dropout)
+
+                # for the 2 layer
+                fwcellx2 = DropoutWrapper(GRUCell(dd), dropout)
+                bwcellx2 = DropoutWrapper(GRUCell(dd), dropout)
             else:
                 fwcellx = GRUCell(dd)
                 bwcellx = GRUCell(dd)
 
+                # for the 2 layer
+                fwcellx2 = GRUCell(dd)
+                bwcellx2 = GRUCell(dd)
 
-            outputx = tf.nn.bidirectional_dynamic_rnn(cell_fw=fwcellx, cell_bw=bwcellx, inputs=xx, sequence_length=x_len, dtype=tf.float32)
-            (outputsx, output_statesx) = outputx
-            concatx = tf.concat(outputsx, 2)
+            with tf.variable_scope('layer1'):
+                outputx = tf.nn.bidirectional_dynamic_rnn(cell_fw=fwcellx, cell_bw=bwcellx, inputs=xx,
+                                                          sequence_length=x_len, dtype=tf.float32)
+                (outputsx, output_statesx) = outputx
+                concatx = tf.concat(outputsx, 2)
+            with tf.variable_scope('layer2'):
+                outputx = tf.nn.bidirectional_dynamic_rnn(cell_fw=fwcellx2, cell_bw=bwcellx2, inputs=concatx,
+                                                          dtype=tf.float32)
+                (outputsx, output_statesx) = outputx
+                concatx = tf.concat(outputsx, 2)
             print(concatx)
 
         with tf.variable_scope('GRU_Q'):
             if config.is_train:
-                dropout = 1  # no dropout = 1
                 fwcellq = DropoutWrapper(GRUCell(dd), dropout)
                 bwcellq = DropoutWrapper(GRUCell(dd), dropout)
+
+                fwcellq2 = DropoutWrapper(GRUCell(dd), dropout)
+                bwcellq2 = DropoutWrapper(GRUCell(dd), dropout)
             else:
                 fwcellq = GRUCell(dd)
                 bwcellq = GRUCell(dd)
 
-            outputq = tf.nn.bidirectional_dynamic_rnn(cell_fw=fwcellq, cell_bw=bwcellq,
-                                                      inputs=qq, sequence_length=q_len,
-                                                      dtype=tf.float32)
-            (outputsq, output_statesq) = outputq
-            concatq = tf.concat(outputsq, 2)
+                fwcellq2 = GRUCell(dd)
+                bwcellq2 = GRUCell(dd)
 
+            with tf.variable_scope('layer1'):
+                outputq = tf.nn.bidirectional_dynamic_rnn(cell_fw=fwcellq, cell_bw=bwcellq,
+                                                          inputs=qq, sequence_length=q_len,
+                                                          dtype=tf.float32)
+                (outputsq, output_statesq) = outputq
+                concatq = tf.concat(outputsq, 2)
+            with tf.variable_scope('layer2'):
+                outputq = tf.nn.bidirectional_dynamic_rnn(cell_fw=fwcellq2, cell_bw=bwcellq2,
+                                                          inputs=concatq, dtype=tf.float32)
+                (outputsq, output_statesq) = outputq
+                concatq = tf.concat(outputsq, 2)
+        concatq = tf.layers.dense(concatq, d)
+        concatx = tf.layers.dense(concatx, d)
+        
         xx = concatx
         qq = concatq
 
-        qq_avg = tf.reduce_mean(bool_mask(qq, q_mask, expand=True), axis=1)  # [N, d]
-        qq_avg_exp = tf.expand_dims(qq_avg, axis=1)  # [N, 1, d]
-        qq_avg_tiled = tf.tile(qq_avg_exp, [1, JX, 1])  # [N, JX, d]
+        print("xx")
+        print(xx)
 
-        xq = tf.concat([xx, qq_avg_tiled, xx * qq_avg_tiled], axis=2)  # [N, JX, 3d]
+        print("qq")
+        print(qq)
+
+        xx_qq_xxqq = concatMatrix(xx, qq, JX, JQ, d, 3)#[N,JX,JQ,3d]
+        print("xx_qq_xxqq")
+        print(xx_qq_xxqq)
+
+        xx_qq_xxqq_flat = tf.reshape(xx_qq_xxqq, [-1, 3*d]) #[N*JX*JQ,3d]
+        print("xx_qq_xxqq_flat")
+        print(xx_qq_xxqq_flat)
+
+        xx_qq_xxqq = tf.reshape(tf.layers.dense(inputs=xx_qq_xxqq_flat, units=1), [-1, JX, JQ]) #[N,JX,JQ]
+        print("dense xx_qq_xxqq")
+        print(xx_qq_xxqq)
+
+        masked_matrix = mask_dim(xx_qq_xxqq, q_mask, 1)
+        pk = tf.nn.softmax(masked_matrix, axis=2)
+        print("pk")
+        print(pk)
+
+        qkb = tf.matmul(pk, qq)
+        print("qkb mult")
+        print(qkb)
+
+        xq = tf.concat([xx, qkb, xx * qkb], axis=2)  # [N, JX, 3d]
         xq_flat = tf.reshape(xq, [-1, 3*d])  # [N * JX, 3*d]
 
         # Compute logits
@@ -183,6 +249,19 @@ def attention_forward(config, inputs, scope=None):
         variables = {'emb_mat': emb_mat}
         return variables, outputs
 
+def concatMatrix(xx, qq, jx, jq, d, d_rd=3):
+    xxx = tf.expand_dims(xx, axis=2)
+    xxx = tf.tile(xxx, [1, 1, jq, 1])
+    qqq = tf.expand_dims(qq, axis=1)
+    qqq = tf.tile(qqq, [1, jx, 1, 1])
+    xxxqqqq = xxx * qqq
+    output = tf.concat([xxx, qqq, xxxqqqq], axis=3)
+    return output
+
+def mask_dim(matrix,mask,dim):
+    mask = tf.expand_dims(mask, dim)
+    masked_matrix = matrix - (1.0 - tf.cast(mask,'float')) * 10.0e10
+    return masked_matrix
 
 def get_loss(config, inputs, outputs, scope=None):
     with tf.name_scope(scope or "loss"):
